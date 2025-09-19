@@ -1,79 +1,85 @@
-import dearpygui.dearpygui as dpg
-import numpy as np
+import sys
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt
+from OpenGLWidget import Simulator
 
 
-class createUI:
-    def __init__(self, RenderQueue):
-        self.RenderQueue = RenderQueue
-        self.init_ui()
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.InitUI()
 
-    def init_ui(self):
-        dpg.create_context()
-        dpg.show_documentation()
-        dpg.create_viewport(title="test", width=1000, height=600)
+    def InitUI(self):
+        self.setWindowTitle("Main")
+        self.setGeometry(100, 100, 800, 600)
 
-        with dpg.window(
-            label="Tune Parameters",
-            tag="parameters",
-            width=200,
-            no_move=True,
-            no_resize=True,
-        ):
-            dpg.add_text("Parameters")
-            dpg.add_slider_float(label="test2", default_value=0.5, max_value=1)
-            dpg.add_slider_float(label="test2", default_value=0.5, max_value=1)
-            dpg.add_slider_float(label="test2", default_value=0.5, max_value=1)
-            dpg.add_slider_float(label="test2", default_value=0.5, max_value=1)
-            dpg.add_slider_float(label="test2", default_value=0.5, max_value=1)
-            dpg.add_slider_float(label="test2", default_value=0.5, max_value=1)
+        MainWidget = QWidget()
+        MainLayout = QHBoxLayout(MainWidget)
 
-        with dpg.window(
-            label="Simulator", tag="simulator", no_move=True, no_resize=True
-        ):
-            with dpg.texture_registry():
-                dpg.add_raw_texture(
-                    width=800,
-                    height=600,
-                    default_value=np.zeros((600, 800), dtype=np.float32),
-                    format=dpg.mvFormat_Float_rgba,
-                    tag="opengl",
-                )
+        LeftSidebar = QWidget()
+        LeftSidebarLayout = QVBoxLayout(LeftSidebar)
+        LeftSidebarLayout.setAlignment(Qt.AlignTop)
 
-            dpg.add_image("opengl")
+        LeftSidebar_Label = QLabel("Options")
+        btn1 = QPushButton("1")
+        btn2 = QPushButton("2")
+        btn3 = QPushButton("3")
+        btn4 = QPushButton("4")
 
-        with dpg.window(
-            label="Options", tag="options", width=200, no_move=True, no_resize=True
-        ):
-            dpg.add_button(label="test")
-            dpg.add_button(label="test")
-            dpg.add_button(label="test")
-            dpg.add_button(label="test")
-            dpg.add_button(label="test")
-            dpg.add_button(label="test")
-            dpg.add_button(label="test")
+        LeftSidebarLayout.addWidget(LeftSidebar_Label)
+        LeftSidebarLayout.addWidget(btn1)
+        LeftSidebarLayout.addWidget(btn2)
+        LeftSidebarLayout.addWidget(btn3)
+        LeftSidebarLayout.addWidget(btn4)
 
-        dpg.set_viewport_resize_callback(self.Resize_Callback)
+        self.OpenGLWindow = Simulator()
 
-        dpg.setup_dearpygui()
-        dpg.show_viewport()
-        self.Resize_Callback()
-        while dpg.is_dearpygui_running():
-            self.update_opengl()
-            dpg.render_dearpygui_frame()
+        RightSideBar = QWidget()
+        RightSideBarLayout = QVBoxLayout(RightSideBar)
+        RightSideBarLayout.setAlignment(Qt.AlignTop)
 
-        dpg.destroy_context()
+        RightSideBar_Label = QLabel("Properties")
+        Slider1_Label = QLabel("Slider 1")
+        Slider1 = QSlider(Qt.Horizontal)
+        Slider1.setMinimum(0)
+        Slider1.setMaximum(100)
+        Slider1.setValue(50)
+        Slider2_Label = QLabel("Slider 2")
+        Slider2 = QSlider(Qt.Horizontal)
+        Slider2.setMinimum(0)
+        Slider2.setMaximum(100)
+        Slider2.setValue(50)
+        Slider3_Label = QLabel("Slider 3")
+        Slider3 = QSlider(Qt.Horizontal)
+        Slider3.setMinimum(0)
+        Slider3.setMaximum(100)
+        Slider3.setValue(50)
+        Slider4_Label = QLabel("Slider 4")
+        Slider4 = QSlider(Qt.Horizontal)
+        Slider4.setMinimum(0)
+        Slider4.setMaximum(100)
+        Slider4.setValue(50)
+        Slider5_Label = QLabel("Slider 5")
+        Slider5 = QSlider(Qt.Horizontal)
+        Slider5.setMinimum(0)
+        Slider5.setMaximum(100)
+        Slider5.setValue(50)
 
-    def Resize_Callback(self):
-        width = dpg.get_viewport_width()
-        height = dpg.get_viewport_height()
+        RightSideBarLayout.addWidget(RightSideBar_Label)
+        RightSideBarLayout.addWidget(Slider1_Label)
+        RightSideBarLayout.addWidget(Slider1)
+        RightSideBarLayout.addWidget(Slider2_Label)
+        RightSideBarLayout.addWidget(Slider2)
+        RightSideBarLayout.addWidget(Slider3_Label)
+        RightSideBarLayout.addWidget(Slider3)
+        RightSideBarLayout.addWidget(Slider4_Label)
+        RightSideBarLayout.addWidget(Slider4)
+        RightSideBarLayout.addWidget(Slider5_Label)
+        RightSideBarLayout.addWidget(Slider5)
 
-        dpg.configure_item("parameters", pos=(0, 0), height=height)
-        dpg.configure_item("options", pos=(width - 200, 0), height=height)
-        dpg.configure_item("simulator", pos=(200, 0), width=width - 400, height=height)
+        MainLayout.addWidget(LeftSidebar)
+        MainLayout.addWidget(self.OpenGLWindow, 1)
+        MainLayout.addWidget(RightSideBar)
 
-    def update_opengl(self):
-        if not self.RenderQueue.empty():
-            frame = self.RenderQueue.get()
-            texture_data = (frame / 255.0).astype(np.float32)
-            dpg.set_value("opengl", texture_data.reshape(-1))
+        self.setCentralWidget(MainWidget)
 

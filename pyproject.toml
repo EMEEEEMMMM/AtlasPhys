@@ -5,9 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "dearpygui>=2.1.0",
     "glfw>=2.9.0",
     "numpy>=2.3.2",
+    "pillow>=11.3.0",
     "pyopengl>=3.1.10",
     "pyopengl-accelerate>=3.1.10",
+    "pyqt5>=5.15.9",
+    "pyqt5-tools>=5.15.9.3.3",
+    "pyrr>=0.10.3",
 ]
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
