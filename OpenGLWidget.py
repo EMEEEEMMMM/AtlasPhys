@@ -1,9 +1,13 @@
-from PyQt5.QtWidgets import QOpenGLWidget
-from PyQt5.QtGui import QOpenGLVersionProfile
-from PyQt5.QtCore import QPoint, Qt
+from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+from PyQt6.QtGui import QSurfaceFormat
+from PyQt6.QtOpenGL import QOpenGLVersionProfile, QOpenGLWindow
+from PyQt6.QtCore import QPoint, Qt, QModelIndex
 from OpenGL.GLU import gluLookAt
 from OpenGL.GL import *
 import numpy as np
+import os
+import sys
+from numpy.typing import NDArray
 
 # IS_PERSPECTIVE = True                               # Perspective projection
 # VIEW = np.array([-0.8, 0.8, -0.8, 0.8, 1.0, 20.0])  # Visual body left/right/top/bottom/near/far six surface
@@ -17,44 +21,47 @@ import numpy as np
 
 
 class Simulator(QOpenGLWidget):
-    def __init__(self, parent=None):
+    def __init__(self, window_ui, parent=None):
         super().__init__(parent)
+
+        self.window_self = window_ui
         # Camera
-        self.EYE = np.array([0.0, 0.0, 5.0])
-        self.LOOK_AT = np.array([0.0, 0.0, 0.0])
-        self.EYE_UP = np.array([0.0, 1.0, 0.0])
+        self.EYE: NDArray = np.array([0.0, 0.0, 5.0])
+        self.LOOK_AT: NDArray = np.array([0.0, 0.0, 0.0])
+        self.EYE_UP: NDArray = np.array([0.0, 1.0, 0.0])
 
         self.DIST, self.PHI, self.THETA = self.get_posture()
 
-        self.SCALE_K = np.array([1.0, 1.0, 1.0])
-        self.IS_PERSPECTIVE = True
-        self.VIEW = np.array([-0.8, 0.8, -0.8, 0.8, 1.0, 20.0])
+        self.SCALE_K: NDArray = np.array([1.0, 1.0, 1.0])
+        self.IS_PERSPECTIVE: bool = True
+        self.VIEW: NDArray = np.array([-0.8, 0.8, -0.8, 0.8, 1.0, 20.0])
 
-        self.LeftDown = False
+        self.LeftDown: bool = False
         self.LastPos = QPoint()
+        self.Graphics: list = []
 
     def initializeGL(self):
-        version_profile = QOpenGLVersionProfile()
-        version_profile.setVersion(2, 0)
-        self.gl = self.context().versionFunctions(version_profile)
-        self.gl.initializeOpenGLFunctions()
+        self.fmt = QSurfaceFormat()
+        self.fmt.setVersion(3, 3)
 
-        self.gl.glClearColor(0.0, 0.0, 0.0, 1.0)
-        self.gl.glEnable(
-            self.gl.GL_DEPTH_TEST
+        glClearColor(0.0, 0.0, 0.0, 1.0)
+        glEnable(
+            GL_DEPTH_TEST
         )  # Enable depth testing to achieve occlusion relationships
-        self.gl.glDepthFunc(
-            self.gl.GL_LEQUAL
+        self.shader_program = self.compile_shaders()
+        glDepthFunc(
+            GL_LEQUAL
         )  # Set the depth test function (GL_LEQUAL is just one of the options)
-        self.gl.glClear(self.gl.GL_COLOR_BUFFER_BIT | self.gl.GL_DEPTH_BUFFER_BIT)
-
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glUseProgram(self.shader_program)
         # Set the projection matrix
-        self.gl.glMatrixMode(self.gl.GL_PROJECTION)
-        self.gl.glLoadIdentity()
 
     def paintGL(self):
         self.makeCurrent()
         w, h = self.width(), self.height()
+
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
         if self.IS_PERSPECTIVE:
             # Perspective Projection (glFrustum)
             if w > h:
@@ -67,7 +74,7 @@ class Simulator(QOpenGLWidget):
                 right = self.VIEW[1]
                 bottom = self.VIEW[2] * h / w
                 top = self.VIEW[3] * h / w
-            self.gl.glFrustum(left, right, bottom, top, self.VIEW[4], self.VIEW[5])
+            glFrustum(left, right, bottom, top, self.VIEW[4], self.VIEW[5])
         else:
             # Orthogonal Projection (glOrtho)
             if w > h:
@@ -80,10 +87,12 @@ class Simulator(QOpenGLWidget):
                 right = self.VIEW[1]
                 bottom = self.VIEW[2] * h / w
                 top = self.VIEW[3] * h / w
-            self.gl.glOrtho(left, right, bottom, top, self.VIEW[4], self.VIEW[5])
+            glOrtho(left, right, bottom, top, self.VIEW[4], self.VIEW[5])
 
-        self.gl.glMatrixMode(self.gl.GL_MODELVIEW)
-        self.gl.glLoadIdentity()
+        Projection = glGetFloatv(GL_PROJECTION_MATRIX)
+
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
 
         gluLookAt(
             self.EYE[0],
@@ -97,14 +106,26 @@ class Simulator(QOpenGLWidget):
             self.EYE_UP[2],
         )
 
-        self.gl.glScalef(self.SCALE_K[0], self.SCALE_K[1], self.SCALE_K[2])
+        glScalef(self.SCALE_K[0], self.SCALE_K[1], self.SCALE_K[2])
 
-        self.draw_triangle()
+        ModelView = glGetFloatv(GL_MODELVIEW_MATRIX)
+
+        mvp = np.dot(Projection, ModelView)
+        mvp_loc = glGetUniformLocation(self.shader_program, "mvp")
+        glUniformMatrix4fv(mvp_loc, 1, GL_FALSE, mvp)
+
+        self.draw_coordinates()
+
+        for vao, ebo, index_len, object_type in self.Graphics:
+            glBindVertexArray(vao)
+            glDrawElements(object_type, index_len, GL_UNSIGNED_INT, ctypes.c_void_p(0))
+            glBindVertexArray(0)
+
         # Clear the buffer and send the instructions to the hardware for immediate execution
-        self.gl.glFlush()
+        glFlush()
 
     def get_posture(self):
-        delta = self.EYE - self.LOOK_AT
+        delta: NDArray = self.EYE - self.LOOK_AT
         DIST = np.linalg.norm(delta)
         if DIST < 0.001:
             return 0.0, 0.0, 0.0
@@ -115,50 +136,17 @@ class Simulator(QOpenGLWidget):
 
         return DIST, PHI, THETA
 
-    def draw_triangle(self):
-        # Start drawing world coordinates
-        self.gl.glBegin(self.gl.GL_LINES)
-
-        # Draw X-axis with color red
-        self.gl.glColor4f(1.0, 0.0, 0.0, 1.0)  # set color red and non-transparent
-        self.gl.glVertex3f(-0.8, 0.0, 0.0)  # X-axis vertex (negative X-axis)
-        self.gl.glVertex3f(0.8, 0.0, 0.0)  # X-axis vertex (positive X-axis)
-
-        # Draw Y-axis with color green
-        self.gl.glColor4f(0.0, 1.0, 0.0, 1.0)
-        self.gl.glVertex3f(0.0, -0.8, 0.0)
-        self.gl.glVertex3f(0.0, 0.8, 0.0)
-
-        # Draw Z-axis with color blue
-        self.gl.glColor4f(0.0, 0.0, 1.0, 1.0)
-        self.gl.glVertex3f(0.0, 0.0, -0.8)
-        self.gl.glVertex3f(0.0, 0.0, 0.8)
-
-        self.gl.glEnd()  # End
-
-        # Start draw triangle
-        self.gl.glBegin(self.gl.GL_TRIANGLES)
-
-        self.gl.glColor4f(1.0, 0.0, 0.0, 1.0)
-        self.gl.glVertex3f(-0.5, -0.366, -0.5)
-        self.gl.glColor4f(0.0, 1.0, 0.0, 1.0)
-        self.gl.glVertex3f(0.5, -0.366, -0.5)
-        self.gl.glColor4f(0.0, 0.0, 1.0, 1.0)
-        self.gl.glVertex3f(0.0, 0.5, -0.5)
-
-        self.gl.glEnd()
-
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.LeftDown = True
-            self.LastPos = event.pos()
+            self.LastPos = event.position()
 
     def mouseMoveEvent(self, event):
         if not self.LeftDown:
             return
 
-        dx = self.LastPos.x() - event.x()
-        dy = event.y() - self.LastPos.y()
+        dx = self.LastPos.x() - event.position().x()
+        dy = event.position().y() - self.LastPos.y()
         self.LastPos = event.pos()
 
         w, h = self.width(), self.height()
@@ -181,7 +169,7 @@ class Simulator(QOpenGLWidget):
         self.update()
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.LeftDown = False
 
     def wheelEvent(self, event):
@@ -191,8 +179,155 @@ class Simulator(QOpenGLWidget):
         else:
             self.SCALE_K *= 0.95
 
-        self.repaint()
+        self.update()
 
     def resizeGL(self, w, h):
-        self.gl.glViewport(0, 0, w, h)
+        glViewport(0, 0, w, h)
         self.update()
+
+    def compile_shaders(self):
+        # Vertex_shader
+        vertex_shader = glCreateShader(GL_VERTEX_SHADER)
+        glShaderSource(
+            vertex_shader, self.load_shader("ShaderProgram/vertex_shader.vert")
+        )
+        glCompileShader(vertex_shader)
+
+        # Vertex_shader
+        fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
+        glShaderSource(
+            fragment_shader, self.load_shader("ShaderProgram/fragment_shader.frag")
+        )
+        glCompileShader(fragment_shader)
+
+        # shader_program
+        shader_program = glCreateProgram()
+        glAttachShader(shader_program, vertex_shader)
+        glAttachShader(shader_program, fragment_shader)
+        glLinkProgram(shader_program)
+
+        glDeleteShader(vertex_shader)
+        glDeleteShader(fragment_shader)
+
+        return shader_program
+
+    def draw_coordinates(self):
+        self.makeCurrent()
+
+        # fmt: off
+        Vertices: NDArray[np.float32] = np.array([
+            # X-axis
+            -100.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
+            100.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
+            
+            # Y-axis
+            0.0, -100.0, 0.0, 0.0, 1.0, 0.0, 1.0,
+            0.0, 100.0, 0.0, 0.0, 1.0, 0.0, 1.0,
+            
+            # Z-axis
+            0.0, 0.0, -100.0, 0.0, 1.0, 1.0, 1.0,
+            0.0, 0.0, 100.0, 0.0, 1.0, 1.0, 1.0,
+        ], dtype=np.float32)
+
+        Indices: NDArray[np.float32] = np.array([
+            0, 1,
+            2, 3,
+            4, 5
+        ], dtype=np.uint32)
+        # fmt: on
+
+        # Vao
+        vao = glGenVertexArrays(1)
+        glBindVertexArray(vao)
+
+        # Vbo
+        vbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, vbo)
+        glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
+
+        # Ebo
+        ebo = glGenBuffers(1)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
+
+        # Vertices
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+
+        # Colors
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
+        glEnableVertexAttribArray(1)
+
+        glBindVertexArray(0)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+        # self.Graphics.append((vao, ebo, len(indices), GL_LINES))
+        glBindVertexArray(vao)
+        glDrawElements(GL_LINES, len(Indices), GL_UNSIGNED_INT, ctypes.c_void_p(0))
+        glBindVertexArray(0)
+        # # Start drawing world coordinates
+        # glBegin(GL_LINES)
+
+        # # Draw X-axis with color red
+        # glColor4f(1.0, 0.0, 0.0, 1.0)  # set color red and non-transparent
+        # glVertex3f(-0.8, 0.0, 0.0)  # X-axis vertex (negative X-axis)
+        # glVertex3f(0.8, 0.0, 0.0)  # X-axis vertex (positive X-axis)
+
+        # # Draw Y-axis with color green
+        # glColor4f(0.0, 1.0, 0.0, 1.0)
+        # glVertex3f(0.0, -0.8, 0.0)
+        # glVertex3f(0.0, 0.8, 0.0)
+
+        # # Draw Z-axis with color blue
+        # glColor4f(0.0, 0.0, 1.0, 1.0)
+        # glVertex3f(0.0, 0.0, -0.8)
+        # glVertex3f(0.0, 0.0, 0.8)
+
+        # glEnd()  # End
+
+    def analysis_data(self, data: dict):
+        self.makeCurrent()
+
+        ObjectType: int = data["Type"]
+        Vertices: NDArray[np.float32] = data["Vertices"]
+        Indices: NDArray[np.float32] = data["Indices"]
+
+        vao = glGenVertexArrays(1)
+        glBindVertexArray(vao)
+
+        vbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, vbo)
+        glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
+
+        ebo = glGenBuffers(1)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
+        glEnableVertexAttribArray(1)
+
+        glBindVertexArray(0)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+        index = len(self.Graphics)
+
+        self.Graphics.append((vao, ebo, len(Indices), ObjectType))
+
+        self.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+        self.window_self.ObjectList.endInsertRows()
+
+        self.update()
+
+    def load_shader(self, file_path: str):
+        if getattr(sys, "frozen", False):
+            BasePth = sys._MEIPASS
+        else:
+            BasePth = os.path.abspath(".")
+        dir = os.path.join(BasePth, file_path)
+        with open(dir, "r") as f:
+            return f.read()

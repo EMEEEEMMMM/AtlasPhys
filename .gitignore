@@ -3,10 +3,11 @@ __pycache__/
 *.py[oc]
 build/
 dist/
+dist_windows/
 wheels/
 *.egg-info
 
 # Virtual environments
 .venv
 
-test.py
+.VSCodeCounter

@@ -5,14 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "glfw>=2.9.0",
-    "numpy>=2.3.2",
-    "pillow>=11.3.0",
+    "numpy>=2.3.3",
     "pyopengl>=3.1.10",
     "pyopengl-accelerate>=3.1.10",
-    "pyqt5>=5.15.9",
-    "pyqt5-tools>=5.15.9.3.3",
-    "pyrr>=0.10.3",
+    "pyqt6>=6.4.2",
+    "pyqt6-tools>=6.4.2.3.3",
 ]
 
 [[tool.uv.index]]
