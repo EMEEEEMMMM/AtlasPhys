@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtCore import Qt, QModelIndex, QAbstractListModel
 from OpenGLWidget import Simulator
 from Handler import PushButtonEvent
+from typing import Any
 
 
 class MainWindow(QMainWindow):
@@ -25,8 +26,8 @@ class MainWindow(QMainWindow):
         LeftSidebar_Label = QLabel("Options")
         SwitchP_Mode = QPushButton("Switch projection mode")
         AddObjects = QPushButton("Add Objects")
-        btn3 = QPushButton("3")
-        btn4 = QPushButton("4")
+        AddOrDeleteCoordinateAxis = QPushButton("Add/Delete Coordinate Axis")
+        AddOrDeletePlane = QPushButton("Add/Delete the plane")
 
         Slider_Label = QLabel("Properties")
         Slider1_Label = QLabel("Slider 1")
@@ -58,8 +59,8 @@ class MainWindow(QMainWindow):
         LeftSidebarLayout.addWidget(LeftSidebar_Label)
         LeftSidebarLayout.addWidget(SwitchP_Mode)
         LeftSidebarLayout.addWidget(AddObjects)
-        LeftSidebarLayout.addWidget(btn3)
-        LeftSidebarLayout.addWidget(btn4)
+        LeftSidebarLayout.addWidget(AddOrDeleteCoordinateAxis)
+        LeftSidebarLayout.addWidget(AddOrDeletePlane)
 
         LeftSidebarLayout.addWidget(Slider_Label)
         LeftSidebarLayout.addWidget(Slider1_Label)
@@ -73,7 +74,7 @@ class MainWindow(QMainWindow):
         LeftSidebarLayout.addWidget(Slider5_Label)
         LeftSidebarLayout.addWidget(Slider5)
 
-        self.OpenGLWindow = Simulator(self)
+        self.OpenGLWindow: Simulator = Simulator(self)
 
         RightSidebar = QWidget()
         RightSidebar.setFixedWidth(200)
@@ -96,20 +97,25 @@ class MainWindow(QMainWindow):
 
         SwitchP_Mode.clicked.connect(self.PushButtonEvent.switch_projection_mode)
         AddObjects.clicked.connect(self.PushButtonEvent.add_object)
+        AddOrDeleteCoordinateAxis.clicked.connect(
+            self.PushButtonEvent.add_or_delelte_coordinate_axis
+        )
+        AddOrDeletePlane.clicked.connect(self.PushButtonEvent.add_or_delelte_plane)
 
         DeleteObjectBtn.clicked.connect(self.PushButtonEvent.delete_object)
         self.ObjectListView.setSelectionMode(QListView.SelectionMode.SingleSelection)
         self.ObjectListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
 
-    def init_data(self):
-        self.ObjectList: list = ListObjectModel(self.OpenGLWindow.Graphics)
+    def init_data(self) -> None:
+        self.ObjectList: ListObjectModel = ListObjectModel(self.OpenGLWindow)
         self.ObjectListView.setModel(self.ObjectList)
 
 
 class ListObjectModel(QAbstractListModel):
-    def __init__(self, Object_list: list, parent=None):
+    def __init__(self, OpenGLWindow: Simulator, parent=None):
         super().__init__(parent)
-        self.ObjectList = Object_list
+        self.OpenGLWindow = OpenGLWindow
+        self.ObjectList = self.OpenGLWindow.Graphics
 
     def rowCount(self, parent=QModelIndex()) -> int:
         return len(self.ObjectList) if not parent.isValid() else 0
@@ -119,7 +125,7 @@ class ListObjectModel(QAbstractListModel):
             return None
 
         if role == Qt.ItemDataRole.DisplayRole:
-            Type = self.ObjectList[index.row()][3]
+            Type = self.ObjectList[index.row()][4]
             return f"物体：{Type}"
 
         return None
@@ -127,8 +133,18 @@ class ListObjectModel(QAbstractListModel):
     def delete_selected(self, index: QModelIndex):
         if index.isValid():
             self.beginRemoveRows(QModelIndex(), index.row(), index.row())
-            del self.ObjectList[index.row()]
-            self.endRemoveRows()
-
-            
-
+            data = (vao, vbo, ebo, index_len, ObjectType) = self.ObjectList[index.row()]
+            if data == self.OpenGLWindow.Coordinate_Data:
+                self.OpenGLWindow.COORDINATE_AXIS = False
+                self.OpenGLWindow.delete_single_object(vao, vbo, ebo)
+                del self.ObjectList[index.row()]
+                self.endRemoveRows()
+            elif data == self.OpenGLWindow.Plane_Data:
+                self.OpenGLWindow.PLANE = False
+                self.OpenGLWindow.delete_single_object(vao, vbo, ebo)
+                del self.ObjectList[index.row()]
+                self.endRemoveRows()
+            else:
+                self.OpenGLWindow.delete_single_object(vao, vbo, ebo)
+                del self.ObjectList[index.row()]
+                self.endRemoveRows()
