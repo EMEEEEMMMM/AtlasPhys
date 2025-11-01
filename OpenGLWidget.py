@@ -1,14 +1,13 @@
-from typing import Any, Union
+from typing import Any
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtGui import QSurfaceFormat
-from PyQt6.QtCore import QPointF, Qt, QModelIndex
-from OpenGL.GLU import gluLookAt
+from PyQt6.QtCore import QPointF, Qt, QModelIndex, QElapsedTimer, QTimer
 from OpenGL.GL import *
 import numpy as np
 import os
 import sys
 from numpy.typing import NDArray
-from utils import Physics_utils
+from utils import Opengl_utils, Physics_utils
 
 # IS_PERSPECTIVE = True                               # Perspective projection
 # VIEW = np.array([-0.8, 0.8, -0.8, 0.8, 1.0, 20.0])  # Visual body left/right/top/bottom/near/far six surface
@@ -26,10 +25,17 @@ class Simulator(QOpenGLWidget):
         super().__init__(parent)
 
         self.window_self = window_ui
+
         # Camera
-        self.EYE: NDArray[np.floating[Any]] = np.array([0.0, 0.0, 5.0])
-        self.LOOK_AT: NDArray[np.floating[Any]] = np.array([0.0, 0.0, 0.0])
-        self.EYE_UP: NDArray[np.floating[Any]] = np.array([0.0, 1.0, 0.0])
+        self.CameraPos: NDArray[np.floating[Any]] = np.array(
+            [0.0, 0.0, 3.0], dtype=np.float32
+        )
+        self.CameraFront: NDArray[np.floating[Any]] = np.array(
+            [0.0, 0.0, -1.0], dtype=np.float32
+        )
+        self.CameraUP: NDArray[np.floating[Any]] = np.array(
+            [0.0, 1.0, 0.0], dtype=np.float32
+        )
 
         self.SCALE_K: NDArray[np.floating[Any]] = np.array([1.0, 1.0, 1.0])
         self.IS_PERSPECTIVE: bool = True
@@ -38,6 +44,8 @@ class Simulator(QOpenGLWidget):
         self.VIEW: NDArray[np.floating[Any]] = np.array(
             [-0.8, 0.8, -0.8, 0.8, 1.0, 20.0]
         )
+        self.YAW: float = -90.0
+        self.PITCH: float = 0.0
 
         self.RightDown: bool = False
         self.LastPos: QPointF = QPointF()
@@ -45,41 +53,47 @@ class Simulator(QOpenGLWidget):
         self.Coordinate_Data = None
         self.Plane_Data = None
 
+        self.TIMER = QElapsedTimer()
+        self.TIMER_STARTED: bool = False
+        self.KEYSPRESSED: list = []
+        self.Animation_Timer = QTimer(self)
+        self.Animation_Timer.timeout.connect(self.update)
+        self.Animation_Timer.start(7)
+
     def initializeGL(self):
         self.fmt = QSurfaceFormat()
         self.fmt.setVersion(3, 3)
 
         glClearColor(0.0, 0.0, 0.0, 1.0)
-        glEnable(
-            GL_DEPTH_TEST
-        )  # Enable depth testing to achieve occlusion relationships
+        glEnable(GL_DEPTH_TEST)
+        # Enable depth testing to achieve occlusion relationships
         self.shader_program = self.compile_shaders()
-        glDepthFunc(
-            GL_LEQUAL
-        )  # Set the depth test function (GL_LEQUAL is just one of the options)
+        glDepthFunc(GL_LEQUAL)
+        # Set the depth test function (GL_LEQUAL is just one of the options)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glUseProgram(self.shader_program)
+        self.draw_plane()
+        # self.draw_sun()
 
     def paintGL(self):
         self.makeCurrent()
         w, h = self.width(), self.height()
 
-        # Set the projection matrix
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
         if self.IS_PERSPECTIVE:
             # Perspective Projection (glFrustum)
             if w > h:
-                left = self.VIEW[0] * w / h
-                right = self.VIEW[1] * w / h
-                bottom = self.VIEW[2]
-                top = self.VIEW[3]
+                left: np.float64 = self.VIEW[0] * w / h
+                right: np.float64 = self.VIEW[1] * w / h
+                bottom: np.float64 = self.VIEW[2]
+                top: np.float64 = self.VIEW[3]
             else:
-                left = self.VIEW[0]
-                right = self.VIEW[1]
-                bottom = self.VIEW[2] * h / w
-                top = self.VIEW[3] * h / w
-            glFrustum(left, right, bottom, top, self.VIEW[4], self.VIEW[5])
+                left: np.float64 = self.VIEW[0]
+                right: np.float64 = self.VIEW[1]
+                bottom: np.float64 = self.VIEW[2] * h / w
+                top: np.float64 = self.VIEW[3] * h / w
+            projection: NDArray[np.floating[Any]] = Opengl_utils.perspective_projection(
+                left, right, bottom, top, self.VIEW[4], self.VIEW[5]
+            )
+
         else:
             # Orthogonal Projection (glOrtho)
             if w > h:
@@ -92,32 +106,35 @@ class Simulator(QOpenGLWidget):
                 right = self.VIEW[1]
                 bottom = self.VIEW[2] * h / w
                 top = self.VIEW[3] * h / w
-            glOrtho(left, right, bottom, top, self.VIEW[4], self.VIEW[5])
+            projection = Opengl_utils.ortho_projection(
+                left, right, bottom, top, self.VIEW[4], self.VIEW[5]
+            )
 
-        Projection = glGetFloatv(GL_PROJECTION_MATRIX)
+        # Radius: float = 10.0
+        # CamX: np.float32 = np.sin(self.get_time()) * Radius
+        # CamZ: np.float32 = np.cos(self.get_time()) * Radius
 
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
+        # Vector1 = np.array([CamX, 0.0, CamZ], dtype=np.float32)
+        # Vector2 = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+        # Vector3 = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
-        gluLookAt(
-            self.EYE[0],
-            self.EYE[1],
-            self.EYE[2],
-            self.LOOK_AT[0],
-            self.LOOK_AT[1],
-            self.LOOK_AT[2],
-            self.EYE_UP[0],
-            self.EYE_UP[1],
-            self.EYE_UP[2],
+        ViewMatrix: NDArray[np.floating[Any]] = Opengl_utils.lookat(
+            self.CameraPos, self.CameraPos + self.CameraFront, self.CameraUP
         )
+        ModelMatrix: NDArray[np.floating[Any]] = Opengl_utils.scalef(self.SCALE_K)
 
-        glScalef(self.SCALE_K[0], self.SCALE_K[1], self.SCALE_K[2])
+        glUseProgram(self.shader_program)
 
-        ModelView = glGetFloatv(GL_MODELVIEW_MATRIX)
+        ProjLocation = glGetUniformLocation(self.shader_program, "projection")
+        ViewLocation = glGetUniformLocation(self.shader_program, "view")
+        ModelLocation = glGetUniformLocation(self.shader_program, "model")
 
-        mvp = np.dot(Projection, ModelView)
-        mvp_loc = glGetUniformLocation(self.shader_program, "mvp")
-        glUniformMatrix4fv(mvp_loc, 1, GL_FALSE, mvp)
+        glUniformMatrix4fv(ProjLocation, 1, GL_FALSE, projection.T.flatten())
+        glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, ViewMatrix.T.flatten())
+        glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, ModelMatrix.T.flatten())
+
+        LightColor = glGetUniformLocation(self.shader_program, "lightColor")
+        glUniform4f(LightColor, 1.0, 1.0, 1.0, 1.0)
 
         for vao, _, _, index_len, object_type in self.Graphics:
             glBindVertexArray(vao)
@@ -127,128 +144,69 @@ class Simulator(QOpenGLWidget):
         # Clear the buffer and send the instructions to the hardware for immediate execution
         glFlush()
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event) -> None:
         self.setFocus()
         if event.button() == Qt.MouseButton.RightButton:
             self.RightDown = True
             self.LastPos = event.position()
 
-    def mouseMoveEvent(self, event):
+            front = self.CameraFront
+            self.YAW = np.degrees(np.arctan2(front[2], front[0]))
+            self.PITCH = np.degrees(np.arcsin(np.clip(front[1], -1.0, 1.0)))
+
+    def mouseMoveEvent(self, event) -> None:
         if not self.RightDown:
             return
 
-        # Get the position of the mouse and its displacement
         Current_Position = event.position()
-        dx = self.LastPos.x() - Current_Position.x()
-        dy = Current_Position.y() - self.LastPos.y()
+        DX = Current_Position.x() - self.LastPos.x()
+        DY = self.LastPos.y() - Current_Position.y()
+
+        Sensitivity: float = 0.05
+        self.YAW += DX * Sensitivity
+        self.PITCH += DY * Sensitivity
+
+        self.PITCH = np.clip(self.PITCH, -89.0, 89.0)
+
+        Front: NDArray[np.floating[Any]] = np.array(
+            [
+                np.cos(np.radians(self.YAW)) * np.cos(np.radians(self.PITCH)),
+                np.sin(np.radians(self.PITCH)),
+                np.sin(np.radians(self.YAW)) * np.cos(np.radians(self.PITCH)),
+            ], dtype=np.float32
+        )
+        self.CameraFront = Physics_utils.normalize(Front)
+
         self.LastPos = Current_Position
-
-        # Calculate the vector from the current camera to the target point
-        DirectionOfEye: NDArray[np.floating[Any]] = self.LOOK_AT - self.EYE
-        Distance: np.floating[Any] = np.linalg.norm(DirectionOfEye)
-        if Distance < 1e-6:
-            return
-
-        Theta: float = -dx * 0.002
-        Phi: float = -dy * 0.002
-
-        Phi = np.clip(Phi, -np.pi / 2.0 + 0.01, np.pi / 2.0 - 0.01)
-
-        # Calculate the position of the camera rotated
-        # Unit Vector
-        UnitVector: NDArray[np.floating[Any]] = DirectionOfEye / Distance
-        UP_Vector: NDArray[np.floating[Any]] = self.EYE_UP
-
-        # Right
-        Right: NDArray[np.floating[Any]] = np.cross(UnitVector, UP_Vector)
-        Right_norm: np.floating = np.linalg.norm(Right)
-        if Right_norm < 1e-6:
-            Right = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        else:
-            Right = Right / Right_norm
-
-        # Apply Vertical rotation
-        RotatedVerticalVector: NDArray[np.floating[Any]] = Physics_utils.rotate_vector(
-            UnitVector, UP_Vector, Theta
-        )
-
-        Right_2nd = np.cross(RotatedVerticalVector, UP_Vector)
-        Right_norm_2nd = np.linalg.norm(Right_2nd)
-        if Right_norm_2nd < 1e-6:
-            Right_2nd = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        else:
-            Right_2nd = Right_2nd / Right_norm_2nd
-
-        # Apply horizontal rotaion (The final vector)
-        FinalVector: NDArray[np.floating[Any]] = Physics_utils.rotate_vector(
-            RotatedVerticalVector, Right_2nd, Phi
-        )
-        FinalUP: NDArray[np.floating[Any]] = Physics_utils.rotate_vector(
-            UP_Vector, Right_2nd, Phi
-        )
-
-        # Update self.EYE, self.EYE_UP
-        self.EYE = self.LOOK_AT - FinalVector * Distance
-        self.EYE_UP = FinalUP / np.linalg.norm(FinalUP)
 
         self.update()
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.RightButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.RightDown = False
 
     def keyPressEvent(self, event):
-        """
-        Handle keyboard key events and achieve camera position movement
-
-        Args:
-            event (QKeyEvent)
-        """
-
-        Step: float = 0.1
-
-        DirectionForward: NDArray[np.floating[Any]] = self.LOOK_AT - self.EYE
-        Norm_DirectionForward: np.floating = np.linalg.norm(DirectionForward)
-        if Norm_DirectionForward < 1e-6:
-            return
-        DirectionForward = DirectionForward / Norm_DirectionForward
-
-        DirectionRight: NDArray[np.floating[Any]] = np.cross(
-            DirectionForward, self.EYE_UP
-        )
-        Norm_DirectionRight: np.floating = np.linalg.norm(DirectionRight)
-        if Norm_DirectionRight < 1e-6:
-            DirectionRight = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        else:
-            DirectionRight = DirectionRight / Norm_DirectionRight
+        CameraSpeed: float = 5.0 * 1 / 144
 
         match event.key():
 
             case Qt.Key.Key_W:
-                self.EYE += DirectionForward * Step
-                self.LOOK_AT += DirectionForward * Step
+                self.CameraPos += CameraSpeed * self.CameraFront
 
             case Qt.Key.Key_S:
-                self.EYE -= DirectionForward * Step
-                self.LOOK_AT -= DirectionForward * Step
+                self.CameraPos -= CameraSpeed * self.CameraFront
 
             case Qt.Key.Key_A:
-                self.EYE -= DirectionRight * Step
-                self.LOOK_AT -= DirectionRight * Step
+                self.CameraPos -= (
+                    Physics_utils.normalize(np.cross(self.CameraFront, self.CameraUP))
+                    * CameraSpeed
+                )
 
             case Qt.Key.Key_D:
-                self.EYE += DirectionRight * Step
-                self.LOOK_AT += DirectionRight * Step
-
-            case Qt.Key.Key_Q:
-                self.EYE += self.EYE_UP * Step
-                self.LOOK_AT += self.EYE_UP * Step
-
-            case Qt.Key.Key_E:
-                self.EYE -= self.EYE_UP * Step
-                self.LOOK_AT -= self.EYE_UP * Step
-
-        self.update()
+                self.CameraPos += (
+                    Physics_utils.normalize(np.cross(self.CameraFront, self.CameraUP))
+                    * CameraSpeed
+                )
 
     def wheelEvent(self, event):
         delta = event.angleDelta().y()
@@ -273,14 +231,15 @@ class Simulator(QOpenGLWidget):
         # Vertex_shader
         vertex_shader = glCreateShader(GL_VERTEX_SHADER)
         glShaderSource(
-            vertex_shader, self.load_shader("ShaderProgram/vertex_shader.vert")
+            vertex_shader, Opengl_utils.load_shader("ShaderProgram/vertex_shader.vert")
         )
         glCompileShader(vertex_shader)
 
         # Vertex_shader
         fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
         glShaderSource(
-            fragment_shader, self.load_shader("ShaderProgram/fragment_shader.frag")
+            fragment_shader,
+            Opengl_utils.load_shader("ShaderProgram/fragment_shader.frag"),
         )
         glCompileShader(fragment_shader)
 
@@ -397,14 +356,14 @@ class Simulator(QOpenGLWidget):
 
         # fmt: off
         Vertices: NDArray[np.float32] = np.array([
-            -500, 10, -500, 2/3, 1/3, 0, 1.0,
-            500, 10, -500, 2/3, 1/3, 0, 1.0,
-            500, -10, -500, 2/3, 1/3, 0, 1.0,
-            -500, -10, -500, 2/3, 1/3, 0, 1.0,
-            -500, 10, 500, 2/3, 1/3, 0, 1.0,
-            500, 10, 500, 2/3, 1/3, 0, 1.0,
-            500, -10, 500, 2/3, 1/3, 0, 1.0,
-            -500, -10, 500, 2/3, 1/3, 0, 1.0,
+            -50, -2.0, -50, 2/3, 1/3, 0, 1.0,
+            50, -2.0, -50, 2/3, 1/3, 0, 1.0,
+            50, -2.05, -50, 2/3, 1/3, 0, 1.0,
+            -50, -2.05, -50, 2/3, 1/3, 0, 1.0,
+            -50, -2.0, 50, 2/3, 1/3, 0, 1.0,
+            50, -2.0, 50, 2/3, 1/3, 0, 1.0,
+            50, -2.05, 50, 2/3, 1/3, 0, 1.0,
+            -50, -2.05, 50, 2/3, 1/3, 0, 1.0,
         ], dtype=np.float32)
 
         Indices: NDArray[np.uint32] = np.array([
@@ -460,6 +419,50 @@ class Simulator(QOpenGLWidget):
 
         self.update()
 
+    def draw_sun(self) -> None:
+        """
+        Create a light for the entire environment
+
+
+        TODO: A delete or add muti-light function
+        """
+        self.makeCurrent()
+        Vertices, Indices = Opengl_utils.generate_sphere(
+            5.0, 0.0, 10.0, 0.0, 10000, 10000
+        )
+
+        # Vao
+        self.SunVao = glGenVertexArrays(1)
+        glBindVertexArray(self.SunVao)
+
+        # Vbo
+        self.SunVbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, self.SunVbo)
+        glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
+
+        # Ebo
+        self.SunEbo = glGenBuffers(1)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.SunEbo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
+
+        # Vertices
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+
+        # Colors
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
+        glEnableVertexAttribArray(1)
+
+        glBindVertexArray(0)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+        self.Graphics.append(
+            (self.SunVao, self.SunVbo, self.SunEbo, len(Indices), GL_TRIANGLES)
+        )
+
+        self.update()
+
     def analysis_data(self, data: dict):
         """
         To analysis data were transfered from the Handler.py,
@@ -505,24 +508,6 @@ class Simulator(QOpenGLWidget):
 
         self.update()
 
-    def load_shader(self, file_path: str):
-        """_summary_
-        Load shader from file_path
-
-        Args:
-            file_path (str): the file path
-
-        Returns:
-            the shader
-        """
-        if getattr(sys, "frozen", False):
-            BasePth = sys._MEIPASS  # type: ignore[attr-defined]
-        else:
-            BasePth = os.path.abspath(".")
-        dir = os.path.join(BasePth, file_path)
-        with open(dir, "r") as f:
-            return f.read()
-
     def delete_single_object(self, vao, vbo, ebo) -> None:
         """
         To release the buffer of the object's vao, vbo, ebo
@@ -535,3 +520,10 @@ class Simulator(QOpenGLWidget):
         glDeleteVertexArrays(1, [vao])
         glDeleteBuffers(1, [vbo])
         glDeleteBuffers(1, [ebo])
+
+    def get_time(self) -> float:
+        if not self.TIMER_STARTED:
+            self.TIMER.start()
+            self.TIMER_STARTED = True
+
+        return self.TIMER.elapsed() / 1000.0

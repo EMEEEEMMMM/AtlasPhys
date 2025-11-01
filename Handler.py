@@ -1,17 +1,18 @@
 from typing import TypedDict
 from PyQt6.QtWidgets import *
-from PyQt6.QtCore import QModelIndex
 import numpy as np
 from numpy.typing import NDArray
 from typing import Union
 from OpenGL.GL import *
-from utils import Sphere_utils
+from utils import Opengl_utils
+from utils.Decorator import time_counter
 
 
 class PushButtonEvent:
     def __init__(self, window) -> None:
         self.window = window
 
+    @time_counter
     def switch_projection_mode(self) -> None:
         CurrentMode = self.window.OpenGLWindow.IS_PERSPECTIVE
         if CurrentMode:
@@ -22,6 +23,7 @@ class PushButtonEvent:
             print(f"IS_PERSPECTIVE={self.window.OpenGLWindow.IS_PERSPECTIVE}")
         self.window.OpenGLWindow.repaint()
 
+    @time_counter
     def add_or_delelte_coordinate_axis(self):
         Current: bool = self.window.OpenGLWindow.COORDINATE_AXIS
         ObjectList: list = self.window.OpenGLWindow.Graphics
@@ -51,6 +53,7 @@ class PushButtonEvent:
 
         self.window.OpenGLWindow.update()
 
+    @time_counter
     def add_or_delelte_plane(self):
         Current: bool = self.window.OpenGLWindow.PLANE
         ObjectList: list = self.window.OpenGLWindow.Graphics
@@ -80,6 +83,7 @@ class PushButtonEvent:
 
         self.window.OpenGLWindow.update()
 
+    @time_counter
     def add_object(self) -> None:
         dialog = AddObjectDialog(self.window)
 
@@ -87,64 +91,64 @@ class PushButtonEvent:
             data: ObjectDataType = dialog.get_data()
             print(data)
 
-        Type: str = data["Type"]
-        Side_Length: float = data["Side_Length"]
-        X_Coordinate: float = data["X_Coordinate"]
-        Y_Coordinate: float = data["Y_Coordinate"]
-        Z_Coordinate: float = data["Z_Coordinate"]
-        R_v: float = data["R"]
-        G_v: float = data["G"]
-        B_v: float = data["B"]
-        A_v: float = data["A"]
+            Type: str = data["Type"]
+            Side_Length: float = data["Side_Length"]
+            X_Coordinate: float = data["X_Coordinate"]
+            Y_Coordinate: float = data["Y_Coordinate"]
+            Z_Coordinate: float = data["Z_Coordinate"]
+            R_v: float = data["R"]
+            G_v: float = data["G"]
+            B_v: float = data["B"]
+            A_v: float = data["A"]
 
-        match Type:
-            case "Equilateral triangle":
-                self.add_triangle(
-                    Side_Length,
-                    X_Coordinate,
-                    Y_Coordinate,
-                    Z_Coordinate,
-                    R_v,
-                    G_v,
-                    B_v,
-                    A_v,
-                )
+            match Type:
+                case "Equilateral triangle":
+                    self.add_triangle(
+                        Side_Length,
+                        X_Coordinate,
+                        Y_Coordinate,
+                        Z_Coordinate,
+                        R_v,
+                        G_v,
+                        B_v,
+                        A_v,
+                    )
 
-            case "Square":
-                self.add_square(
-                    Side_Length,
-                    X_Coordinate,
-                    Y_Coordinate,
-                    Z_Coordinate,
-                    R_v,
-                    G_v,
-                    B_v,
-                    A_v,
-                )
+                case "Square":
+                    self.add_square(
+                        Side_Length,
+                        X_Coordinate,
+                        Y_Coordinate,
+                        Z_Coordinate,
+                        R_v,
+                        G_v,
+                        B_v,
+                        A_v,
+                    )
 
-            case "Cube":
-                self.add_cube(
-                    Side_Length,
-                    X_Coordinate,
-                    Y_Coordinate,
-                    Z_Coordinate,
-                    R_v,
-                    G_v,
-                    B_v,
-                    A_v,
-                )
-            
-            case "Sphere":
-                self.add_sphere(
-                    Side_Length,
-                    X_Coordinate,
-                    Y_Coordinate,
-                    Z_Coordinate,
-                    R_v,
-                    G_v,
-                    B_v,
-                    A_v,
-                )
+                case "Cube":
+                    self.add_cube(
+                        Side_Length,
+                        X_Coordinate,
+                        Y_Coordinate,
+                        Z_Coordinate,
+                        R_v,
+                        G_v,
+                        B_v,
+                        A_v,
+                    )
+
+                case "Sphere":
+                    self.add_sphere(
+                        Side_Length,
+                        X_Coordinate,
+                        Y_Coordinate,
+                        Z_Coordinate,
+                        R_v,
+                        G_v,
+                        B_v,
+                        A_v,
+                    )
 
     def add_triangle(
         self,
@@ -264,7 +268,7 @@ class PushButtonEvent:
         Rings: int = 1000,
         Sectors: int = 1000,
     ) -> None:
-        Vertices, Indices = Sphere_utils.generate_sphere(
+        Vertices, Indices = Opengl_utils.generate_sphere(
             Radius,
             X_Coordinate,
             Y_Coordinate,

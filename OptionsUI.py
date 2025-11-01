@@ -95,14 +95,18 @@ class MainWindow(QMainWindow):
 
         self.PushButtonEvent = PushButtonEvent(self)
 
-        SwitchP_Mode.clicked.connect(self.PushButtonEvent.switch_projection_mode)
-        AddObjects.clicked.connect(self.PushButtonEvent.add_object)
-        AddOrDeleteCoordinateAxis.clicked.connect(
-            self.PushButtonEvent.add_or_delelte_coordinate_axis
+        SwitchP_Mode.clicked.connect(
+            lambda: self.PushButtonEvent.switch_projection_mode()
         )
-        AddOrDeletePlane.clicked.connect(self.PushButtonEvent.add_or_delelte_plane)
+        AddObjects.clicked.connect(lambda: self.PushButtonEvent.add_object())
+        AddOrDeleteCoordinateAxis.clicked.connect(
+            lambda: self.PushButtonEvent.add_or_delelte_coordinate_axis()
+        )
+        AddOrDeletePlane.clicked.connect(
+            lambda: self.PushButtonEvent.add_or_delelte_plane()
+        )
 
-        DeleteObjectBtn.clicked.connect(self.PushButtonEvent.delete_object)
+        DeleteObjectBtn.clicked.connect(lambda: self.PushButtonEvent.delete_object())
         self.ObjectListView.setSelectionMode(QListView.SelectionMode.SingleSelection)
         self.ObjectListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
 

@@ -2,6 +2,9 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import Any
 
+GRAVITY: float = 9.8
+
+
 
 def rotate_vector(
     initial_vector: NDArray[np.floating[Any]],
@@ -44,3 +47,17 @@ def rotate_vector(
     )
 
     return V_Rotated
+
+def normalize(arr) -> NDArray[np.floating[Any]]:
+        """
+        To normalize a array
+
+        Args:
+            arr (Ndarray): The array need to normalize 
+
+        Returns:
+            Normalized array
+        """
+        Normalized: NDArray[np.floating[Any]] = np.linalg.norm(arr)
+        
+        return arr / Normalized
