@@ -48,7 +48,7 @@ def rotate_vector(
 
     return V_Rotated
 
-def normalize(arr) -> NDArray[np.floating[Any]]:
+def normalize(arr: NDArray[np.floating[Any]]) -> NDArray[np.floating[Any]]:
         """
         To normalize a array
 
@@ -58,6 +58,6 @@ def normalize(arr) -> NDArray[np.floating[Any]]:
         Returns:
             Normalized array
         """
-        Normalized: NDArray[np.floating[Any]] = np.linalg.norm(arr)
+        Normalized: np.floating[Any] = np.linalg.norm(arr)
         
         return arr / Normalized

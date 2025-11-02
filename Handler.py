@@ -1,20 +1,21 @@
-from typing import TypedDict
-from PyQt6.QtWidgets import *
+from typing import TypedDict, Any
+from PyQt6.QtWidgets import * # type: ignore
 import numpy as np
 from numpy.typing import NDArray
 from typing import Union
-from OpenGL.GL import *
+from OpenGL.GL import * # type: ignore
 from utils import Opengl_utils
 from utils.Decorator import time_counter
 
 
 class PushButtonEvent:
-    def __init__(self, window) -> None:
+    window: Any
+    def __init__(self, window: Any) -> None:
         self.window = window
 
     @time_counter
     def switch_projection_mode(self) -> None:
-        CurrentMode = self.window.OpenGLWindow.IS_PERSPECTIVE
+        CurrentMode: bool = self.window.OpenGLWindow.IS_PERSPECTIVE
         if CurrentMode:
             self.window.OpenGLWindow.IS_PERSPECTIVE = False
             print(f"IS_PERSPECTIVE={self.window.OpenGLWindow.IS_PERSPECTIVE}")
@@ -24,9 +25,9 @@ class PushButtonEvent:
         self.window.OpenGLWindow.repaint()
 
     @time_counter
-    def add_or_delelte_coordinate_axis(self):
+    def add_or_delelte_coordinate_axis(self) -> None:
         Current: bool = self.window.OpenGLWindow.COORDINATE_AXIS
-        ObjectList: list = self.window.OpenGLWindow.Graphics
+        ObjectList: list[Any] = self.window.OpenGLWindow.Graphics
         if Current:
             Axis_Index: int = self.window.OpenGLWindow.Graphics.index(
                 (
@@ -54,9 +55,9 @@ class PushButtonEvent:
         self.window.OpenGLWindow.update()
 
     @time_counter
-    def add_or_delelte_plane(self):
+    def add_or_delelte_plane(self) -> None:
         Current: bool = self.window.OpenGLWindow.PLANE
-        ObjectList: list = self.window.OpenGLWindow.Graphics
+        ObjectList: list[Any] = self.window.OpenGLWindow.Graphics
         if Current:
             Plane_Index: int = self.window.OpenGLWindow.Graphics.index(
                 (
@@ -85,7 +86,7 @@ class PushButtonEvent:
 
     @time_counter
     def add_object(self) -> None:
-        dialog = AddObjectDialog(self.window)
+        dialog: AddObjectDialog = AddObjectDialog(self.window)
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
             data: ObjectDataType = dialog.get_data()
@@ -101,7 +102,7 @@ class PushButtonEvent:
             B_v: float = data["B"]
             A_v: float = data["A"]
 
-            match Type:
+            match Type: # type: ignore
                 case "Equilateral triangle":
                     self.add_triangle(
                         Side_Length,
@@ -289,7 +290,7 @@ class PushButtonEvent:
         self.window.OpenGLWindow.analysis_data(ObjectData)
 
     def delete_object(self) -> None:
-        SelectedIndex = self.window.ObjectListView.currentIndex()
+        SelectedIndex: Any = self.window.ObjectListView.currentIndex()
         if SelectedIndex.isValid():
             self.window.ObjectList.delete_selected(SelectedIndex)
         self.window.update()
@@ -306,22 +307,35 @@ class ObjectDataType(TypedDict):
     B: float
     A: float
 
-
 class AddObjectDialog(QDialog):
+    r: float
+    g: float
+    b: float
+    a: float
+    SelectType: QComboBox
+    Side_Length: QDoubleSpinBox
+    X_Coordinate: QDoubleSpinBox
+    Y_Coordinate: QDoubleSpinBox
+    Z_Coordinate: QDoubleSpinBox
+    ColorSelector: QPushButton
+    ColorResult: QLabel
+    Accept_Reject: QDialogButtonBox
+    CurrentColor: tuple[float, float, float, float]
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Add Object")
         self.resize(600, 500)
-        self.r: float = 0.0
-        self.g: float = 0.0
-        self.b: float = 0.0
-        self.a: float = 0.0
+        self.r = 0.0
+        self.g = 0.0
+        self.b = 0.0
+        self.a = 0.0
+        self.CurrentColor = (0.0, 0.0, 0.0, 1.0)
         self.init_ui()
 
-    def init_ui(self):
-        Mainwidget = QWidget()
-        MainLayout = QHBoxLayout(Mainwidget)
+    def init_ui(self) -> None:
+        Mainwidget: QWidget = QWidget()
+        MainLayout: QHBoxLayout = QHBoxLayout(Mainwidget)
 
         self.SelectType = QComboBox()
         # fmt: off

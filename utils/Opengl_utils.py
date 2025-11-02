@@ -201,12 +201,12 @@ def lookat(
     )
     Empty: NDArray[np.floating[Any]] = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
-    VIEW: NDArray[np.floating[Any]] = np.column_stack(
+    ViewMatrix: NDArray[np.floating[Any]] = np.column_stack(
         (CameraRight, CameraUP, -CameraDirection, Translation)
     )
-    VIEW = np.vstack((VIEW, Empty))
+    ViewMatrix = np.vstack((ViewMatrix, Empty))
 
-    return VIEW
+    return ViewMatrix
 
 
 def scalef(scale: NDArray[np.floating[Any]]):
@@ -237,7 +237,7 @@ def load_shader(file_path: str):
             BasePth = sys._MEIPASS  # type: ignore[attr-defined]
         else:
             BasePth = os.path.abspath(".")
-        dir = os.path.join(BasePth, file_path)
+        dir = os.path.join(BasePth, file_path) # type: ignore
         with open(dir, "r") as f:
             return f.read()
         

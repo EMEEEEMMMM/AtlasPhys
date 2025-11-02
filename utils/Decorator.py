@@ -1,7 +1,8 @@
 import time
 from functools import wraps
+from typing import Callable, Any
 
-def time_counter(func):
+def time_counter(func: Callable[..., Any]) -> Callable[..., Any]:
     """
     A time counter for functions
 
@@ -10,7 +11,7 @@ def time_counter(func):
     """
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any):
         StartTime = time.perf_counter()
         Reuslt = func(*args, **kwargs)
         EndTime = time.perf_counter()

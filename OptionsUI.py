@@ -1,17 +1,17 @@
-from PyQt6.QtWidgets import *
-from PyQt6.QtCore import Qt, QModelIndex, QAbstractListModel
+from PyQt6.QtWidgets import *  # type: ignore
+from PyQt6.QtCore import Qt, QModelIndex, QAbstractListModel, QObject
 from OpenGLWidget import Simulator
 from Handler import PushButtonEvent
-from typing import Any
+from typing import Any, Optional
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.init_ui()
         self.init_data()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
         self.setWindowTitle("Main")
         self.setGeometry(100, 100, 800, 600)
 
@@ -74,7 +74,7 @@ class MainWindow(QMainWindow):
         LeftSidebarLayout.addWidget(Slider5_Label)
         LeftSidebarLayout.addWidget(Slider5)
 
-        self.OpenGLWindow: Simulator = Simulator(self)
+        self.OpenGLWindow = Simulator(self)
 
         RightSidebar = QWidget()
         RightSidebar.setFixedWidth(200)
@@ -111,33 +111,38 @@ class MainWindow(QMainWindow):
         self.ObjectListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
 
     def init_data(self) -> None:
-        self.ObjectList: ListObjectModel = ListObjectModel(self.OpenGLWindow)
+        self.ObjectList = ListObjectModel(self.OpenGLWindow)
         self.ObjectListView.setModel(self.ObjectList)
 
 
 class ListObjectModel(QAbstractListModel):
-    def __init__(self, OpenGLWindow: Simulator, parent=None):
+    OpenGLWindow: Simulator
+    ObjectList: list[Any]
+
+    def __init__(
+        self, OpenGLWindow: Simulator, parent: Optional[QObject] = None
+    ) -> None:
         super().__init__(parent)
         self.OpenGLWindow = OpenGLWindow
         self.ObjectList = self.OpenGLWindow.Graphics
 
-    def rowCount(self, parent=QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.ObjectList) if not parent.isValid() else 0
 
-    def data(self, index: QModelIndex, role=Qt.ItemDataRole.DisplayRole):
+    def data(
+        self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole
+    ) -> Optional[str]:
         if not index.isValid():
             return None
-
         if role == Qt.ItemDataRole.DisplayRole:
             Type = self.ObjectList[index.row()][4]
             return f"物体：{Type}"
-
         return None
 
-    def delete_selected(self, index: QModelIndex):
+    def delete_selected(self, index: QModelIndex) -> None:
         if index.isValid():
             self.beginRemoveRows(QModelIndex(), index.row(), index.row())
-            data = (vao, vbo, ebo, index_len, ObjectType) = self.ObjectList[index.row()]
+            data = (vao, vbo, ebo, _, _) = self.ObjectList[index.row()]
             if data == self.OpenGLWindow.Coordinate_Data:
                 self.OpenGLWindow.COORDINATE_AXIS = False
                 self.OpenGLWindow.delete_single_object(vao, vbo, ebo)
