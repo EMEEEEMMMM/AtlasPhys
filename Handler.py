@@ -1,15 +1,29 @@
 from typing import TypedDict, Any
-from PyQt6.QtWidgets import * # type: ignore
+from PyQt6.QtWidgets import *  # type: ignore
+from PyQt6.QtCore import QModelIndex 
 import numpy as np
 from numpy.typing import NDArray
-from typing import Union
-from OpenGL.GL import * # type: ignore
-from utils import Opengl_utils
+from OpenGL.GL import *  # type: ignore
+from utils import Generate_Objects, Opengl_utils
+from utils.G_Object import P_Object
 from utils.Decorator import time_counter
+
+
+class ObjectDataType(TypedDict):
+    Shape: str
+    Side_Length: float
+    X_Coordinate: float
+    Y_Coordinate: float
+    Z_Coordinate: float
+    R_v: float
+    G_v: float
+    B_v: float
+    A_v: float
 
 
 class PushButtonEvent:
     window: Any
+
     def __init__(self, window: Any) -> None:
         self.window = window
 
@@ -30,22 +44,10 @@ class PushButtonEvent:
         ObjectList: list[Any] = self.window.OpenGLWindow.Graphics
         if Current:
             Axis_Index: int = self.window.OpenGLWindow.Graphics.index(
-                (
-                    self.window.OpenGLWindow.AxisVao,
-                    self.window.OpenGLWindow.AxisVbo,
-                    self.window.OpenGLWindow.AxisEbo,
-                    6,
-                    GL_LINES,
-                )
+                self.window.OpenGLWindow.CoordinateObj
             )
-            (
-                vao,
-                vbo,
-                ebo,
-                _,
-                _,
-            ) = ObjectList[Axis_Index]
-            self.window.OpenGLWindow.delete_single_object(vao, vbo, ebo)
+            obj = ObjectList[Axis_Index]
+            self.window.OpenGLWindow.delete_single_object(obj.VAO, obj.VBO, obj.EBO)
             del ObjectList[Axis_Index]
             self.window.OpenGLWindow.COORDINATE_AXIS = False
         else:
@@ -60,22 +62,10 @@ class PushButtonEvent:
         ObjectList: list[Any] = self.window.OpenGLWindow.Graphics
         if Current:
             Plane_Index: int = self.window.OpenGLWindow.Graphics.index(
-                (
-                    self.window.OpenGLWindow.PlaneVao,
-                    self.window.OpenGLWindow.PlaneVbo,
-                    self.window.OpenGLWindow.PlaneEbo,
-                    24,
-                    GL_QUADS,
-                )
+                self.window.OpenGLWindow.PlaneObj
             )
-            (
-                vao,
-                vbo,
-                ebo,
-                _,
-                _,
-            ) = ObjectList[Plane_Index]
-            self.window.OpenGLWindow.delete_single_object(vao, vbo, ebo)
+            obj = ObjectList[Plane_Index]
+            self.window.OpenGLWindow.delete_single_object(obj.VAO, obj.VBO, obj.EBO)
             del ObjectList[Plane_Index]
             self.window.OpenGLWindow.PLANE = False
         else:
@@ -89,205 +79,77 @@ class PushButtonEvent:
         dialog: AddObjectDialog = AddObjectDialog(self.window)
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            data: ObjectDataType = dialog.get_data()
+            data: ObjectDataType = dialog.get_data()  
             print(data)
 
-            Type: str = data["Type"]
-            Side_Length: float = data["Side_Length"]
-            X_Coordinate: float = data["X_Coordinate"]
-            Y_Coordinate: float = data["Y_Coordinate"]
-            Z_Coordinate: float = data["Z_Coordinate"]
-            R_v: float = data["R"]
-            G_v: float = data["G"]
-            B_v: float = data["B"]
-            A_v: float = data["A"]
-
-            match Type: # type: ignore
+            Shape: str = data["Shape"]
+            IData = {key:val for key, val in data.items() if key != "Shape"}
+            match Shape:  # type: ignore
+                
                 case "Equilateral triangle":
-                    self.add_triangle(
-                        Side_Length,
-                        X_Coordinate,
-                        Y_Coordinate,
-                        Z_Coordinate,
-                        R_v,
-                        G_v,
-                        B_v,
-                        A_v,
+                    ObjectData: dict[
+                        str, int | NDArray[np.float32] | NDArray[np.uint32]
+                    ] = Generate_Objects.add_triangle(**IData)
+                    vao, vbo, ebo = Opengl_utils.analysis_data(
+                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"] # type: ignore
                     )
+                    CData: dict[str, object] = data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    Sustance: P_Object = P_Object(CData)  # type: ignore
+                    self.window.OpenGLWindow.Graphics.append(Sustance)
+
+                    index: int = len(self.window.OpenGLWindow.Graphics)
+
+                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+                    self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
                 case "Square":
-                    self.add_square(
-                        Side_Length,
-                        X_Coordinate,
-                        Y_Coordinate,
-                        Z_Coordinate,
-                        R_v,
-                        G_v,
-                        B_v,
-                        A_v,
+                    ObjectData: dict[
+                        str, int | NDArray[np.float32] | NDArray[np.uint32]
+                    ] = Generate_Objects.add_square(**IData )
+                    vao, vbo, ebo = Opengl_utils.analysis_data(
+                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"] # type: ignore
                     )
+                    CData: dict[str, object] = data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    Sustance: P_Object = P_Object(CData)  # type: ignore
+                    self.window.OpenGLWindow.Graphics.append(Sustance)
+
+                    index: int = len(self.window.OpenGLWindow.Graphics)
+
+                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+                    self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
                 case "Cube":
-                    self.add_cube(
-                        Side_Length,
-                        X_Coordinate,
-                        Y_Coordinate,
-                        Z_Coordinate,
-                        R_v,
-                        G_v,
-                        B_v,
-                        A_v,
+                    ObjectData: dict[
+                        str, int | NDArray[np.float32] | NDArray[np.uint32]
+                    ] = Generate_Objects.add_cube(**IData)
+                    vao, vbo, ebo = Opengl_utils.analysis_data(
+                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"] # type: ignore
                     )
+                    CData: dict[str, object] = data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    print(CData)
+                    Sustance: P_Object = P_Object(CData)  # type: ignore
+                    self.window.OpenGLWindow.Graphics.append(Sustance)
+
+                    index: int = len(self.window.OpenGLWindow.Graphics)
+
+                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+                    self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
                 case "Sphere":
-                    self.add_sphere(
-                        Side_Length,
-                        X_Coordinate,
-                        Y_Coordinate,
-                        Z_Coordinate,
-                        R_v,
-                        G_v,
-                        B_v,
-                        A_v,
+                    ObjectData: dict[
+                        str, int | NDArray[np.float32] | NDArray[np.uint32]
+                    ] = Generate_Objects.add_sphere(**IData)
+                    vao, vbo, ebo = Opengl_utils.analysis_data(
+                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"] # type: ignore
                     )
+                    CData: dict[str, object] = data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    Sustance: P_Object = P_Object(CData)  # type: ignore
+                    self.window.OpenGLWindow.Graphics.append(Sustance)
 
-    def add_triangle(
-        self,
-        Side_Length: float,
-        X_Coordinate: float,
-        Y_Coordinate: float,
-        Z_Coordinate: float,
-        R_v: float,
-        G_v: float,
-        B_v: float,
-        A_v: float,
-    ) -> None:
-        # fmt:off
-        Vertices: NDArray[np.float32] = np.array([
-            X_Coordinate - (Side_Length / 2), Y_Coordinate - (np.power(3,1 / 2) / 6 * Side_Length), Z_Coordinate, R_v, G_v, B_v, A_v,
-            X_Coordinate + (Side_Length / 2), Y_Coordinate - (np.power(3,1 / 2) / 6 * Side_Length), Z_Coordinate, R_v, G_v, B_v, A_v,
-            X_Coordinate, Y_Coordinate + (np.power(3,1 / 2) / 3 * Side_Length), Z_Coordinate, R_v, G_v, B_v, A_v,
-            ],dtype=np.float32,
-        )
-        Indices: NDArray[np.uint32] = np.array([0, 1, 2], dtype=np.uint32)
-        # fmt: on
+                    index: int = len(self.window.OpenGLWindow.Graphics)
 
-        ObjectData: dict[str, Union[int, NDArray[np.float32], NDArray[np.uint32]]] = {
-            "Type": GL_TRIANGLES,
-            "Vertices": Vertices,
-            "Indices": Indices,
-        }
-
-        self.window.OpenGLWindow.analysis_data(ObjectData)
-
-    def add_square(
-        self,
-        Side_Length: float,
-        X_Coordinate: float,
-        Y_Coordinate: float,
-        Z_Coordinate: float,
-        R_v: float,
-        G_v: float,
-        B_v: float,
-        A_v: float,
-    ) -> None:
-        # fmt: off
-        Vertices: NDArray[np.float32] = np.array([
-            X_Coordinate - (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate, R_v, G_v, B_v, A_v,
-            X_Coordinate + (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate, R_v, G_v, B_v, A_v,
-            X_Coordinate + (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate, R_v, G_v, B_v, A_v,
-            X_Coordinate - (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate, R_v, G_v, B_v, A_v,
-            ], dtype=np.float32
-        )
-        Indices: NDArray[np.uint32] = np.array([0, 1, 2, 3], dtype=np.uint32)
-        # fmt: on
-
-        ObjectData: dict[str, Union[int, NDArray[np.float32], NDArray[np.uint32]]] = {
-            "Type": GL_QUADS,
-            "Vertices": Vertices,
-            "Indices": Indices,
-        }
-
-        self.window.OpenGLWindow.analysis_data(ObjectData)
-
-    def add_cube(
-        self,
-        Side_Length: float,
-        X_Coordinate: float,
-        Y_Coordinate: float,
-        Z_Coordinate: float,
-        R_v: float,
-        G_v: float,
-        B_v: float,
-        A_v: float,
-    ) -> None:
-        #    v4----- v5
-        #   /|      /|
-        #  v0------v1|
-        #  | |     | |
-        #  | v7----|-v6
-        #  |/      |/
-        #  v3------v2
-        # fmt: off
-        Vertices: NDArray[np.float32] = np.array([
-            X_Coordinate - (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v0
-            X_Coordinate + (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v1
-            X_Coordinate + (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v2
-            X_Coordinate - (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v3
-            X_Coordinate - (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v4
-            X_Coordinate + (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v5
-            X_Coordinate + (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v6
-            X_Coordinate - (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v7
-        ], dtype=np.float32)
-        Indices: NDArray[np.uint32] = np.array([
-            0, 1, 2, 3, # v0-v1-v2-v3
-            4, 5, 1, 0, # v4-v5-v1-v0
-            3, 2, 6, 7, # v3-v2-v6-v7
-            5, 4, 7, 6, # v5-v4-v7-v6
-            1, 5, 6, 2, # v1-v5-v6-v2
-            4, 0, 3, 7  # v4-v0-v3-v7
-        ], dtype=np.uint32)
-        # fmt: on
-        ObjectData: dict[str, Union[int, NDArray[np.float32], NDArray[np.uint32]]] = {
-            "Type": GL_QUADS,
-            "Vertices": Vertices,
-            "Indices": Indices,
-        }
-
-        self.window.OpenGLWindow.analysis_data(ObjectData)
-
-    def add_sphere(
-        self,
-        Radius: float,
-        X_Coordinate: float,
-        Y_Coordinate: float,
-        Z_Coordinate: float,
-        R_v: float,
-        G_v: float,
-        B_v: float,
-        A_v: float,
-        Rings: int = 1000,
-        Sectors: int = 1000,
-    ) -> None:
-        Vertices, Indices = Opengl_utils.generate_sphere(
-            Radius,
-            X_Coordinate,
-            Y_Coordinate,
-            Z_Coordinate,
-            Rings,
-            Sectors,
-            R_v,
-            G_v,
-            B_v,
-            A_v,
-        )
-        ObjectData: dict[str, Union[int, NDArray[np.float32], NDArray[np.uint32]]] = {
-            "Type": GL_TRIANGLES,
-            "Vertices": Vertices,
-            "Indices": Indices,
-        }
-
-        self.window.OpenGLWindow.analysis_data(ObjectData)
+                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+                    self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
     def delete_object(self) -> None:
         SelectedIndex: Any = self.window.ObjectListView.currentIndex()
@@ -295,17 +157,6 @@ class PushButtonEvent:
             self.window.ObjectList.delete_selected(SelectedIndex)
         self.window.update()
 
-
-class ObjectDataType(TypedDict):
-    Type: str
-    Side_Length: float
-    X_Coordinate: float
-    Y_Coordinate: float
-    Z_Coordinate: float
-    R: float
-    G: float
-    B: float
-    A: float
 
 class AddObjectDialog(QDialog):
     r: float
@@ -389,15 +240,15 @@ class AddObjectDialog(QDialog):
 
     def get_data(self) -> ObjectDataType:
         return {
-            "Type": self.SelectType.currentText(),
+            "Shape": self.SelectType.currentText(),
             "Side_Length": self.Side_Length.value(),
             "X_Coordinate": self.X_Coordinate.value(),
             "Y_Coordinate": self.Y_Coordinate.value(),
             "Z_Coordinate": self.Z_Coordinate.value(),
-            "R": self.r,
-            "G": self.g,
-            "B": self.b,
-            "A": self.a,
+            "R_v": self.r,
+            "G_v": self.g,
+            "B_v": self.b,
+            "A_v": self.a,
         }
 
     def show_color_dialog(self) -> None:

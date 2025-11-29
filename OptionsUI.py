@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt, QModelIndex, QAbstractListModel, QObject
 from OpenGLWidget import Simulator
 from Handler import PushButtonEvent
 from typing import Any, Optional
-
+from utils import G_Object
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -135,25 +135,31 @@ class ListObjectModel(QAbstractListModel):
         if not index.isValid():
             return None
         if role == Qt.ItemDataRole.DisplayRole:
-            Type = self.ObjectList[index.row()][4]
-            return f"物体：{Type}"
+            Shape: str = self.ObjectList[index.row()].Shape
+            return f"物体：{Shape}"
         return None
 
     def delete_selected(self, index: QModelIndex) -> None:
         if index.isValid():
             self.beginRemoveRows(QModelIndex(), index.row(), index.row())
-            data = (vao, vbo, ebo, _, _) = self.ObjectList[index.row()]
-            if data == self.OpenGLWindow.Coordinate_Data:
-                self.OpenGLWindow.COORDINATE_AXIS = False
-                self.OpenGLWindow.delete_single_object(vao, vbo, ebo)
-                del self.ObjectList[index.row()]
-                self.endRemoveRows()
-            elif data == self.OpenGLWindow.Plane_Data:
-                self.OpenGLWindow.PLANE = False
-                self.OpenGLWindow.delete_single_object(vao, vbo, ebo)
-                del self.ObjectList[index.row()]
-                self.endRemoveRows()
-            else:
-                self.OpenGLWindow.delete_single_object(vao, vbo, ebo)
-                del self.ObjectList[index.row()]
-                self.endRemoveRows()
+            obj: G_Object.P_Object = self.ObjectList[index.row()]
+            
+            match obj.Shape:
+
+                case "CoordinateAxis":
+                    self.OpenGLWindow.COORDINATE_AXIS = False
+                    self.OpenGLWindow.delete_single_object(obj.VAO, obj.VBO, obj.EBO)
+                    del self.ObjectList[index.row()]
+                    self.endRemoveRows()
+
+                case "Plane":
+                    self.OpenGLWindow.PLANE = False
+                    self.OpenGLWindow.delete_single_object(obj.VAO, obj.VBO, obj.EBO)
+                    del self.ObjectList[index.row()]
+                    self.endRemoveRows()
+
+                case _:
+                    self.OpenGLWindow.delete_single_object(obj.VAO, obj.VBO, obj.EBO)
+                    del self.ObjectList[index.row()]
+                    self.endRemoveRows()
+

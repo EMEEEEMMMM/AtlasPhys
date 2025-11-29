@@ -3,8 +3,12 @@
 
 ## TODO:
 1. Add a slightly real light source.
-2. Add the gravity so that any object will free fail until they touch the plane.
+2. Add collision detection
+
+
 
 ## DONE:
-1. Get the perspective rotation function working well.
-2. Add a plane(like the coordinate axis).
+1. Reconstitution the logic of generating object.
+2. Completed "TODO" in Objects.py
+3. Fixed some bugs
+4. Added gravity

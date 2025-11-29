@@ -1,12 +1,12 @@
-from typing import Any, Optional, Union
+from typing import Any, Optional
 import numpy as np
 from numpy.typing import NDArray
 from OpenGL.GL import *  # type: ignore
 from PyQt6.QtCore import QElapsedTimer, QModelIndex, QPointF, Qt, QTimer
-from PyQt6.QtGui import QSurfaceFormat, QMouseEvent, QKeyEvent, QWheelEvent
+from PyQt6.QtGui import QSurfaceFormat, QMouseEvent, QKeyEvent  # QWheelEvent
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
-
-from utils import Opengl_utils, Physics_utils
+from utils import MathPhys_utils, Opengl_utils
+from utils.G_Object import P_Object, Object_DataType, Coordinate_Axis, Plane
 
 # IS_PERSPECTIVE = True                               # Perspective projection
 # VIEW = np.array([-0.8, 0.8, -0.8, 0.8, 1.0, 20.0])  # Visual body left/right/top/bottom/near/far six surface
@@ -26,21 +26,21 @@ class Simulator(QOpenGLWidget):
         self.window_self: Any = window_ui
 
         # Camera
-        self.CameraPos: NDArray[np.floating[Any]] = np.array(
+        self.CameraPos: NDArray[np.float32] = np.array(
             [0.0, 0.0, 3.0], dtype=np.float32
         )
-        self.CameraFront: NDArray[np.floating[Any]] = np.array(
+        self.CameraFront: NDArray[np.float32] = np.array(
             [0.0, 0.0, -1.0], dtype=np.float32
         )
-        self.CameraUP: NDArray[np.floating[Any]] = np.array(
+        self.CameraUP: NDArray[np.float32] = np.array(
             [0.0, 1.0, 0.0], dtype=np.float32
         )
 
-        self.Scale_K: NDArray[np.floating[Any]] = np.array([1.0, 1.0, 1.0])
+        self.Scale_K: NDArray[np.float32] = np.array([1.0, 1.0, 1.0])
         self.IS_PERSPECTIVE: bool = True
         self.COORDINATE_AXIS: bool = False
         self.PLANE: bool = False
-        self.VIEW: NDArray[np.floating[Any]] = np.array(
+        self.VIEW: NDArray[np.float32] = np.array(
             [-0.8, 0.8, -0.8, 0.8, 1.0, 20.0]
         )
         self.Yaw: float = -90.0
@@ -48,9 +48,7 @@ class Simulator(QOpenGLWidget):
 
         self.RightDown: bool = False
         self.LastPos: QPointF = QPointF()
-        self.Graphics: list[tuple[int, int, int, int, Any]] = []
-        self.Coordinate_Data: tuple[int, int, int, int, Any] = tuple()
-        self.Plane_Data: tuple[Any, Any, Any, int, Any] = tuple()
+        self.Graphics: list[P_Object] = []
 
         self.TIMER = QElapsedTimer()
         self.Time_Started: bool = False
@@ -58,7 +56,10 @@ class Simulator(QOpenGLWidget):
         self.Animation_Timer.timeout.connect(self.update)
         self.Animation_Timer.start(7)
 
-    def initializeGL(self):
+        self.LastTime: float = self.get_time()
+
+
+    def initializeGL(self) -> None:
         self.fmt = QSurfaceFormat()
         self.fmt.setVersion(3, 3)
 
@@ -69,12 +70,16 @@ class Simulator(QOpenGLWidget):
         glDepthFunc(GL_LEQUAL)
         # Set the depth test function (GL_LEQUAL is just one of the options)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # type: ignore
-        self.draw_plane()
+        # self.draw_plane()
         # self.draw_sun()
 
-    def paintGL(self):
+    def paintGL(self) -> None:
         self.makeCurrent()
         w, h = self.width(), self.height()
+        
+        CurrentTime: float = self.get_time()
+        DeltaTime: float = CurrentTime - self.LastTime
+        self.LastTime = CurrentTime
 
         if self.IS_PERSPECTIVE:
             # Perspective Projection (glFrustum)
@@ -88,7 +93,7 @@ class Simulator(QOpenGLWidget):
                 right: np.float32 = self.VIEW[1]
                 bottom: np.float32 = self.VIEW[2] * h / w
                 top: np.float32 = self.VIEW[3] * h / w
-            projection: NDArray[np.floating[Any]] = Opengl_utils.perspective_projection(
+            projection: NDArray[np.float32] = Opengl_utils.perspective_projection(
                 left, right, bottom, top, self.VIEW[4], self.VIEW[5]
             )
 
@@ -116,10 +121,10 @@ class Simulator(QOpenGLWidget):
         # Vector2 = np.array([0.0, 0.0, 0.0], dtype=np.float32)
         # Vector3 = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
-        ViewMatrix: NDArray[np.floating[Any]] = Opengl_utils.lookat(
+        ViewMatrix: NDArray[np.float32] = Opengl_utils.lookat(
             self.CameraPos, self.CameraPos + self.CameraFront, self.CameraUP
         )
-        ModelMatrix: NDArray[np.floating[Any]] = Opengl_utils.scalef(self.Scale_K)
+        
 
         glUseProgram(self.shader_program)
 
@@ -128,15 +133,22 @@ class Simulator(QOpenGLWidget):
         ModelLocation = glGetUniformLocation(self.shader_program, "model")
 
         glUniformMatrix4fv(ProjLocation, 1, GL_FALSE, projection.T.flatten())
-        glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, ViewMatrix.T.flatten())
-        glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, ModelMatrix.T.flatten())
+        glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, ViewMatrix.T.flatten()) 
 
         LightColor = glGetUniformLocation(self.shader_program, "lightColor")
         glUniform4f(LightColor, 1.0, 1.0, 1.0, 1.0)
 
-        for vao, _, _, index_len, object_type in self.Graphics:
-            glBindVertexArray(vao)
-            glDrawElements(object_type, index_len, GL_UNSIGNED_INT, ctypes.c_void_p(0))
+        for obj in self.Graphics:
+            obj.update_position(DeltaTime)
+
+        for obj in self.Graphics:
+            ModelMatrix: NDArray[np.float32] = obj.get_model_matrix()
+            glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, ModelMatrix.T.flatten())
+
+            glBindVertexArray(obj.VAO)
+            glDrawElements(
+                obj.GL_Type, obj.Len_Indices, GL_UNSIGNED_INT, ctypes.c_void_p(0)
+            )
             glBindVertexArray(0)
 
         # Clear the buffer and send the instructions to the hardware for immediate execution
@@ -148,17 +160,13 @@ class Simulator(QOpenGLWidget):
             self.RightDown = True
             self.LastPos = a0.position()
 
-            front = self.CameraFront
-            self.Yaw = np.degrees(np.arctan2(front[2], front[0]))
-            self.Pitch = np.degrees(np.arcsin(np.clip(front[1], -1.0, 1.0)))
-
     def mouseMoveEvent(self, a0: QMouseEvent) -> None:
         if not self.RightDown:
             return
 
-        Current_Position = a0.position()
-        DX = Current_Position.x() - self.LastPos.x()
-        DY = self.LastPos.y() - Current_Position.y()
+        Current_Position: QPointF = a0.position()
+        DX: float = Current_Position.x() - self.LastPos.x()
+        DY: float = self.LastPos.y() - Current_Position.y()
 
         Sensitivity: float = 0.05
         self.Yaw += DX * Sensitivity
@@ -166,7 +174,7 @@ class Simulator(QOpenGLWidget):
 
         self.Pitch = np.clip(self.Pitch, -89.0, 89.0)
 
-        Front: NDArray[np.floating[Any]] = np.array(
+        Front: NDArray[np.float32] = np.array(
             [
                 np.cos(np.radians(self.Yaw)) * np.cos(np.radians(self.Pitch)),
                 np.sin(np.radians(self.Pitch)),
@@ -174,18 +182,18 @@ class Simulator(QOpenGLWidget):
             ],
             dtype=np.float32,
         )
-        self.CameraFront = Physics_utils.normalize(Front)
+        self.CameraFront = MathPhys_utils.normalize(Front)
 
         self.LastPos = Current_Position
 
         self.update()
 
     def mouseReleaseEvent(self, a0: QMouseEvent) -> None:
-        if a0.button() == Qt.MouseButton.LeftButton:
+        if a0.button() == Qt.MouseButton.RightButton:
             self.RightDown = False
 
     def keyPressEvent(self, a0: QKeyEvent) -> None:
-        CameraSpeed: float = 5.0 * 1 / 144
+        CameraSpeed: float = 5.0 * 1 / 120
 
         match a0.key():
             case Qt.Key.Key_W:
@@ -196,29 +204,29 @@ class Simulator(QOpenGLWidget):
 
             case Qt.Key.Key_A:
                 self.CameraPos -= (
-                    Physics_utils.normalize(np.cross(self.CameraFront, self.CameraUP))
+                    MathPhys_utils.normalize(np.cross(self.CameraFront, self.CameraUP))
                     * CameraSpeed
                 )
 
             case Qt.Key.Key_D:
                 self.CameraPos += (
-                    Physics_utils.normalize(np.cross(self.CameraFront, self.CameraUP))
+                    MathPhys_utils.normalize(np.cross(self.CameraFront, self.CameraUP))
                     * CameraSpeed
                 )
 
             case _:
                 pass
 
-    def wheelEvent(self, a0: QWheelEvent) -> None:
-        delta: int = a0.angleDelta().y()
-        if delta > 0:
-            self.Scale_K *= 1.05
-        else:
-            self.Scale_K *= 0.95
+    # def wheelEvent(self, a0: QWheelEvent) -> None:
+    #     delta: int = a0.angleDelta().y()
+    #     if delta > 0:
+    #         self.Scale_K *= 1.05
+    #     else:
+    #         self.Scale_K *= 0.95
 
-        self.update()
+    #     self.update()
 
-    def resizeGL(self, w: int, h: int):
+    def resizeGL(self, w: int, h: int) -> None:
         glViewport(0, 0, w, h)
         self.update()
 
@@ -283,71 +291,36 @@ class Simulator(QOpenGLWidget):
         ], dtype=np.uint32)
         # fmt: on
 
-        # Vao
-        self.AxisVao: int = glGenVertexArrays(1)
-        glBindVertexArray(self.AxisVao) # type: ignore
+        Vao, Vbo, Ebo = Opengl_utils.analysis_data(self, Vertices, Indices)
+        ObjectCompleteData: Object_DataType = {
+            "Shape": "CoordinateAxis",
+            "Side_Length": 0.0,
+            "Side_Length": 0.0,
+            "X_Coordinate": 0.0,
+            "Y_Coordinate": 0.0,
+            "Z_Coordinate": 0.0,
+            "R_v": 1.0,
+            "G_v": 1.0,
+            "B_v": 1.0,
+            "A_v": 1.0,
+            "GL_Type": GL_LINES,
+            "Vertices": Vertices,
+            "Indices": Indices,
+            "Vao": Vao,
+            "Vbo": Vbo,
+            "Ebo": Ebo,
+        }
+        self.CoordinateObj: P_Object = Coordinate_Axis(ObjectCompleteData)
+        self.Graphics.append(self.CoordinateObj)
 
-        # Vbo
-        self.AxisVbo: int = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.AxisVbo) # type: ignore
-        glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
-
-        # Ebo
-        self.AxisEbo: int = glGenBuffers(1)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.AxisEbo) # type: ignore
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
-
-        # Vertices
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(0)
-
-        # Colors
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
-        glEnableVertexAttribArray(1)
-
-        glBindVertexArray(0)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-
-        index = len(self.Graphics)
-        self.Coordinate_Data = (
-            self.AxisVao, # type: ignore
-            self.AxisVbo, # type: ignore
-            self.AxisEbo, # type: ignore
-            len(Indices),
-            GL_LINES,
-        )
-        self.Graphics.append(
-            (self.AxisVao, self.AxisVbo, self.AxisEbo, len(Indices), GL_LINES) # type: ignore
-        )
+        index: int = len(self.Graphics)
 
         self.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
         self.window_self.ObjectList.endInsertRows()
 
+        self.COORDINATE_AXIS = True  # type: ignore
+
         self.update()
-
-        # glBindVertexArray(vao)
-        # glDrawElements(GL_LINES, len(Indices), GL_UNSIGNED_INT, ctypes.c_void_p(0))
-        # glBindVertexArray(0)
-        # # Start drawing world coordinates
-        # glBegin(GL_LINES)
-
-        # # Draw X-axis with color red
-        # glColor4f(1.0, 0.0, 0.0, 1.0)  # set color red and non-transparent
-        # glVertex3f(-0.8, 0.0, 0.0)  # X-axis vertex (negative X-axis)
-        # glVertex3f(0.8, 0.0, 0.0)  # X-axis vertex (positive X-axis)
-
-        # # Draw Y-axis with color green
-        # glColor4f(0.0, 1.0, 0.0, 1.0)
-        # glVertex3f(0.0, -0.8, 0.0)
-        # glVertex3f(0.0, 0.8, 0.0)
-
-        # # Draw Z-axis with color blue
-        # glColor4f(0.0, 0.0, 1.0, 1.0)
-        # glVertex3f(0.0, 0.0, -0.8)
-        # glVertex3f(0.0, 0.0, 0.8)
-
-        # glEnd()  # End
 
     def draw_plane(self) -> None:
         """
@@ -356,158 +329,94 @@ class Simulator(QOpenGLWidget):
         self.makeCurrent()
 
         # fmt: off
-        Vertices: NDArray[np.float32] = np.array([
-            -50, -2.0, -50, 2/3, 1/3, 0, 1.0,
-            50, -2.0, -50, 2/3, 1/3, 0, 1.0,
-            50, -2.05, -50, 2/3, 1/3, 0, 1.0,
-            -50, -2.05, -50, 2/3, 1/3, 0, 1.0,
-            -50, -2.0, 50, 2/3, 1/3, 0, 1.0,
-            50, -2.0, 50, 2/3, 1/3, 0, 1.0,
-            50, -2.05, 50, 2/3, 1/3, 0, 1.0,
-            -50, -2.05, 50, 2/3, 1/3, 0, 1.0,
-        ], dtype=np.float32)
+        Vertices: NDArray[np.float32] = np.array(
+            [
+                -25.0, -1.5, 25, 0.5, 0.5, 0.5, 1.0,
+                25.0, -1.5, 25.0, 0.5, 0.5, 0.5, 1.0,
+                -25.0, -1.5, -25.0, 0.5, 0.5, 0.5, 1.0,
+                25.0, -1.5, -25.0, 0.5, 0.5, 0.5, 1.0,
+            ],
+            dtype=np.float32,
+        )
 
-        Indices: NDArray[np.uint32] = np.array([
-            0, 1, 2, 3, # v0-v1-v2-v3
-            4, 5, 1, 0, # v4-v5-v1-v0
-            3, 2, 6, 7, # v3-v2-v6-v7
-            5, 4, 7, 6, # v5-v4-v7-v6
-            1, 5, 6, 2, # v1-v5-v6-v2
-            4, 0, 3, 7  # v4-v0-v3-v7
-        ], dtype=np.uint32)
+        Indices: NDArray[np.uint32] = np.array([0, 1, 2, 1, 3, 2], dtype=np.uint32)
+
         # fmt: on
 
-        # Vao
-        self.PlaneVao: int = glGenVertexArrays(1)
-        glBindVertexArray(self.PlaneVao) # type: ignore
+        Vao, Vbo, Ebo = Opengl_utils.analysis_data(self, Vertices, Indices)
 
-        # Vbo
-        self.PlaneVbo: int = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.PlaneVbo) # type: ignore
-        glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
+        ObjectCData: Object_DataType = {
+            "Shape": "Plane",
+            "Side_Length": 50.0,
+            "X_Coordinate": 0.0,
+            "Y_Coordinate": -1.5,
+            "Z_Coordinate": 0.0,
+            "R_v": 0.5,
+            "G_v": 0.5,
+            "B_v": 0.5,
+            "A_v": 1.0,
+            "GL_Type": GL_TRIANGLES,
+            "Vertices": Vertices,
+            "Indices": Indices,
+            "Vao": Vao,
+            "Vbo": Vbo,
+            "Ebo": Ebo,
+        }
 
-        # Ebo
-        self.PlaneEbo: int = glGenBuffers(1)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.PlaneEbo) # type: ignore
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
+        self.PlaneObj: P_Object = Plane(ObjectCData)
 
-        # Vertices
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(0)
-
-        # Colors
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
-        glEnableVertexAttribArray(1)
-
-        glBindVertexArray(0)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-
-        index = len(self.Graphics)
-        self.Plane_Data = (
-            self.PlaneVao, # type: ignore
-            self.PlaneVbo, # type: ignore
-            self.PlaneEbo, # type: ignore
-            len(Indices), 
-            GL_QUADS,
-        )
-        self.Graphics.append(
-            (self.PlaneVao, self.PlaneVbo, self.PlaneEbo, len(Indices), GL_QUADS) # type: ignore
-        )
+        self.Graphics.append(self.PlaneObj)
+        index: int = len(self.Graphics)
 
         self.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
         self.window_self.ObjectList.endInsertRows()
 
-        self.update()
-
-    def draw_sun(self) -> None:
-        """
-        Create a light for the entire environment
-
-
-        TODO: A delete or add muti-light function
-        """
-        self.makeCurrent()
-        Vertices, Indices = Opengl_utils.generate_sphere(
-            5.0, 0.0, 10.0, 0.0, 10000, 10000
-        )
-
-        # Vao
-        self.SunVao: int = glGenVertexArrays(1)
-        glBindVertexArray(self.SunVao) # type: ignore
-
-        # Vbo
-        self.SunVbo: int = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.SunVbo) # type: ignore
-        glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
-
-        # Ebo
-        self.SunEbo: int = glGenBuffers(1)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.SunEbo) # type: ignore
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
-
-        # Vertices
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(0)
-
-        # Colors
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
-        glEnableVertexAttribArray(1)
-
-        glBindVertexArray(0)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-
-        self.Graphics.append(
-            (self.SunVao, self.SunVbo, self.SunEbo, len(Indices), GL_TRIANGLES) # type: ignore
-        )
+        self.PLANE = True  # type: ignore
 
         self.update()
 
-    def analysis_data(self, data: dict[str, Union[int, NDArray[np.float32], NDArray[np.uint32]]]) -> None:
-        """
-        To analysis data were transfered from the Handler.py,
-        bind the vao, vbo, ebo,
-        and then send these info into self.Graphics to paint the object,
+    # def draw_sun(self) -> None:
+    #     """
+    #     Create a light for the entire environment
 
-        Args:
-            data (dict): the data of the object
-        """
-        self.makeCurrent()
+    #     TODO: A delete or add muti-light function
+    #     """
+    #     self.makeCurrent()
+    #     Vertices, Indices = Generate_Objects.generate_sphere(
+    #         5.0, 0.0, 10.0, 0.0, 10000, 10000
+    #     )
 
-        ObjectType: int = data["Type"]  # type: ignore
-        Vertices: NDArray[np.float32] = data["Vertices"] # type: ignore
-        Indices: NDArray[np.uint32] = data["Indices"] # type: ignore
+    #     # Vao
+    #     self.SunVao: int = glGenVertexArrays(1)
+    #     glBindVertexArray(self.SunVao)  # type: ignore
 
-        vao: int = glGenVertexArrays(1) # type: ignore
-        glBindVertexArray(vao)
+    #     # Vbo
+    #     self.SunVbo: int = glGenBuffers(1)
+    #     glBindBuffer(GL_ARRAY_BUFFER, self.SunVbo)  # type: ignore
+    #     glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
 
-        vbo: int = glGenBuffers(1) # type: ignore
-        glBindBuffer(GL_ARRAY_BUFFER, vbo)
-        glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
+    #     # Ebo
+    #     self.SunEbo: int = glGenBuffers(1)
+    #     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.SunEbo)  # type: ignore
+    #     glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
 
-        ebo: int = glGenBuffers(1) # type: ignore
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
+    #     # Vertices
+    #     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
+    #     glEnableVertexAttribArray(0)
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(0)
+    #     # Colors
+    #     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
+    #     glEnableVertexAttribArray(1)
 
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
-        glEnableVertexAttribArray(1)
+    #     glBindVertexArray(0)
+    #     glBindBuffer(GL_ARRAY_BUFFER, 0)
+    #     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
-        glBindVertexArray(0)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+    #     self.Graphics.append(
+    #         (self.SunVao, self.SunVbo, self.SunEbo, len(Indices), GL_TRIANGLES)  # type: ignore
+    #     )
 
-        index = len(self.Graphics)
-
-        self.Graphics.append((vao, vbo, ebo, len(Indices), ObjectType)) # type: ignore
-
-        self.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
-        self.window_self.ObjectList.endInsertRows()
-
-        self.update()
+    #     self.update()
 
     def delete_single_object(self, vao: int, vbo: int, ebo: int) -> None:
         """
