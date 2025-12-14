@@ -105,12 +105,22 @@ def lookat(
         ],
         dtype=np.float32,
     )
-    Empty: NDArray[np.float32] = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
+    ViewMatrix: NDArray[np.float32] = np.identity(4, dtype=np.float32)
 
-    ViewMatrix: NDArray[np.float32] = np.column_stack(
-        (CameraRight, CameraUP, -CameraDirection, Translation)
-    )
-    ViewMatrix = np.vstack((ViewMatrix, Empty))
+    ViewMatrix[0, 0] = CameraRight[0]
+    ViewMatrix[0, 1] = CameraRight[1]
+    ViewMatrix[0, 2] = CameraRight[2]
+    ViewMatrix[0, 3] = Translation[0]
+    
+    ViewMatrix[1, 0] = CameraUP[0]
+    ViewMatrix[1, 1] = CameraUP[1] 
+    ViewMatrix[1, 2] = CameraUP[2] 
+    ViewMatrix[1, 3] = Translation[1]
+
+    ViewMatrix[2, 0] = -CameraDirection[0]
+    ViewMatrix[2, 1] = -CameraDirection[1]
+    ViewMatrix[2, 2] = -CameraDirection[2]
+    ViewMatrix[2, 3] = Translation[2]
 
     return ViewMatrix
 

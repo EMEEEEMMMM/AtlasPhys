@@ -151,6 +151,15 @@ class PushButtonEvent:
                     self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
                     self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
+    def start_or_stop(self) -> None:
+        if self.window.OpenGLWindow.START_OR_STOP:
+            self.window.OpenGLWindow.START_OR_STOP = False
+
+        else:
+            self.window.OpenGLWindow.start_render()
+            self.window.OpenGLWindow.START_OR_STOP = True
+
+
     def delete_object(self) -> None:
         SelectedIndex: Any = self.window.ObjectListView.currentIndex()
         if SelectedIndex.isValid():

@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
         AddObjects = QPushButton("Add Objects")
         AddOrDeleteCoordinateAxis = QPushButton("Add/Delete Coordinate Axis")
         AddOrDeletePlane = QPushButton("Add/Delete the plane")
+        StartOrStop = QPushButton("Start/Stop the simulator")
 
         Slider_Label = QLabel("Properties")
         Slider1_Label = QLabel("Slider 1")
@@ -61,6 +62,7 @@ class MainWindow(QMainWindow):
         LeftSidebarLayout.addWidget(AddObjects)
         LeftSidebarLayout.addWidget(AddOrDeleteCoordinateAxis)
         LeftSidebarLayout.addWidget(AddOrDeletePlane)
+        LeftSidebarLayout.addWidget(StartOrStop)
 
         LeftSidebarLayout.addWidget(Slider_Label)
         LeftSidebarLayout.addWidget(Slider1_Label)
@@ -104,6 +106,9 @@ class MainWindow(QMainWindow):
         )
         AddOrDeletePlane.clicked.connect(
             lambda: self.PushButtonEvent.add_or_delelte_plane()
+        )
+        StartOrStop.clicked.connect(
+            lambda: self.PushButtonEvent.start_or_stop()
         )
 
         DeleteObjectBtn.clicked.connect(lambda: self.PushButtonEvent.delete_object())

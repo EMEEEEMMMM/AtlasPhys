@@ -64,6 +64,13 @@ class P_Object:
         )
 
         self.MASS: np.uint32
+        self.initial_data()
+
+    def initial_data(self) -> None:
+        """
+        Initialize the motion and properties for any objects.
+        """
+        self.update_gravity()
 
     def update_position(self, DeltaTime: float) -> None:
         """
@@ -72,7 +79,6 @@ class P_Object:
         Args:
             DeltaTime (float): delta time
         """
-        self.update_gravity()
 
         Displacement_X: float = MathPhys_utils.displacement_Uacceleration(
             self.Velocity[0], self.Acceleration[0], DeltaTime
@@ -110,7 +116,7 @@ class P_Object:
         return FinalMatrix
 
     def update_gravity(self) -> None:
-        self.Acceleration[1] = MathPhys_utils.GRAVITY
+        self.Acceleration[1] += MathPhys_utils.GRAVITY
 
     def detect_collision(self) -> bool: ...
 

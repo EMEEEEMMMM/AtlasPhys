@@ -8,7 +8,6 @@
 
 
 ## DONE:
-1. Reconstitution the logic of generating object.
-2. Completed "TODO" in Objects.py
-3. Fixed some bugs
-4. Added gravity
+1. Fixed a major bug in moving and rotating the perspective
+2. Added the method to start or stop the whole scene
+3. Made the gravity more reasonable

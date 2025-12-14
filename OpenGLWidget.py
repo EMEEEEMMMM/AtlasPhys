@@ -40,6 +40,7 @@ class Simulator(QOpenGLWidget):
         self.IS_PERSPECTIVE: bool = True
         self.COORDINATE_AXIS: bool = False
         self.PLANE: bool = False
+        self.START_OR_STOP: bool = True
         self.VIEW: NDArray[np.float32] = np.array(
             [-0.8, 0.8, -0.8, 0.8, 1.0, 20.0]
         )
@@ -57,6 +58,7 @@ class Simulator(QOpenGLWidget):
         self.Animation_Timer.start(7)
 
         self.LastTime: float = self.get_time()
+
 
 
     def initializeGL(self) -> None:
@@ -138,8 +140,9 @@ class Simulator(QOpenGLWidget):
         LightColor = glGetUniformLocation(self.shader_program, "lightColor")
         glUniform4f(LightColor, 1.0, 1.0, 1.0, 1.0)
 
-        for obj in self.Graphics:
-            obj.update_position(DeltaTime)
+        if self.START_OR_STOP and DeltaTime > 0.0:
+            for obj in self.Graphics:
+                obj.update_position(DeltaTime)
 
         for obj in self.Graphics:
             ModelMatrix: NDArray[np.float32] = obj.get_model_matrix()
@@ -432,8 +435,21 @@ class Simulator(QOpenGLWidget):
         glDeleteBuffers(1, [ebo])
 
     def get_time(self) -> float:
+        """
+        Get the Deltatime for every loop
+
+        Returns:
+            float: the deltatime
+        """
         if not self.Time_Started:
             self.TIMER.start()
             self.Time_Started = True
 
         return self.TIMER.elapsed() / 1000.0
+    
+    def start_render(self) -> None:
+        """
+        Start the entire loop
+        """
+        self.LastTime = self.get_time()
+        
