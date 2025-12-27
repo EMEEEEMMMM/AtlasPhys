@@ -118,8 +118,6 @@ class P_Object:
     def update_gravity(self) -> None:
         self.Acceleration[1] += MathPhys_utils.GRAVITY
 
-    def detect_collision(self) -> bool: ...
-
 
 class Coordinate_Axis(P_Object):
     """

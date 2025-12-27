@@ -218,7 +218,7 @@ def generate_sphere(
 
     Vertices: NDArray[np.float32] = np.column_stack(
         [RealX, RealY, RealZ, R_Array, G_Array, B_Array, A_Array]
-    ).astype(np.float32)
+    ).astype(np.float32).flatten()
 
     RingIndices: NDArray[np.uint32] = np.arange(Rings, dtype=np.uint32).repeat(Sectors)
     SectorIndices: NDArray[np.uint32] = np.tile(

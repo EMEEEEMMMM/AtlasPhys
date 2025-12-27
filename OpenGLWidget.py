@@ -5,7 +5,7 @@ from OpenGL.GL import *  # type: ignore
 from PyQt6.QtCore import QElapsedTimer, QModelIndex, QPointF, Qt, QTimer
 from PyQt6.QtGui import QSurfaceFormat, QMouseEvent, QKeyEvent  # QWheelEvent
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
-from utils import MathPhys_utils, Opengl_utils
+from utils import MathPhys_utils, Opengl_utils, GJK
 from utils.G_Object import P_Object, Object_DataType, Coordinate_Axis, Plane
 
 # IS_PERSPECTIVE = True                               # Perspective projection
@@ -143,6 +143,11 @@ class Simulator(QOpenGLWidget):
         if self.START_OR_STOP and DeltaTime > 0.0:
             for obj in self.Graphics:
                 obj.update_position(DeltaTime)
+                
+                idx: int = self.Graphics.index(obj) + 1
+
+                for i in range(idx, len(self.Graphics)):
+                    GJK.check_collison(obj, self.Graphics[i])
 
         for obj in self.Graphics:
             ModelMatrix: NDArray[np.float32] = obj.get_model_matrix()

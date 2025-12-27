@@ -82,7 +82,7 @@ def scale_matrix(Sx: float, Sy: float, Sz: float) -> NDArray[np.float32]:
 def translation_matrix(Tx: float, Ty: float, Tz: float) -> NDArray[np.float32]:
     """
     To create a translation matrix in order to translate a matrix
-    
+
     Args:
         Tx (float): the amount of translation on x axis
         Ty (float): the amount of translation on y axis
