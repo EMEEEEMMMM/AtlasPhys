@@ -1,8 +1,6 @@
 from numpy.typing import NDArray
 import numpy as np
 from utils.G_Object import P_Object
-from utils.MathPhys_utils import normalize
-
 
 def _support_function_polygon(
     ObjectA: P_Object, Direction: NDArray[np.float32]
@@ -36,14 +34,14 @@ def _support_function_polygon(
     Create a 4D vector for the point(w = 1 means the it is a point instead of a direction)
     World Point = Matrix * Point
     """
-    
+
     ModelMatrix: NDArray[np.float32] = ObjectA.get_model_matrix()
 
     Direction4D: NDArray[np.float32] = np.append(Direction, 0.0)
     
     LocalDirection = np.dot(Direction4D, ModelMatrix)[:3]   # * only need x,y,z
 
-    Vertices: NDArray[np.float32] = ObjectA.Vertices.reshape(-1, 7)[:, :3]
+    Vertices: NDArray[np.float32] = ObjectA.XYZVertices
 
     idx: np.intp = np.argmax(np.dot(Vertices, LocalDirection))
 
@@ -56,7 +54,7 @@ def _support_function_polygon(
     return BestWorldPoint  # type: ignore
 
 
-def _get_simplex_points(
+def get_simplex_points(
     ShapeA: P_Object, ShapeB: P_Object, Direction: NDArray[np.float32]
 ) -> NDArray[np.float32]:
     """
@@ -83,7 +81,7 @@ def _handle_simplex(
     Determines if the simplex contains the origin and updates the direction.
 
     Args:
-        Simplex (NDArray[NDArray[np.float32]]): The simplex (points are from _get_simplex_points)
+        Simplex (NDArray[NDArray[np.float32]]): The simplex (points are from get_simplex_points)
         Direction (NDArray[np.float32]): the direction
 
     Returns:
@@ -220,7 +218,7 @@ def _tetrahedron_case(Simplex: list[NDArray[np.float32]], Direction: NDArray[np.
     
     return True
 
-def check_collison(ObjectA: P_Object, ObjectB: P_Object) -> bool:
+def check_collison(ObjectA: P_Object, ObjectB: P_Object) -> tuple[bool, list[NDArray[np.float32]]]:
     """
     The main function to detect whether two obejcts had collision
 
@@ -232,21 +230,54 @@ def check_collison(ObjectA: P_Object, ObjectB: P_Object) -> bool:
         bool: whether the two objects collide
     """
 
+    if not _check_aabb(ObjectA, ObjectB):
+        return False, []
+
     Direction: NDArray[np.float32] = np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
-    Simplex: list[NDArray[np.float32]] = [_get_simplex_points(ObjectA, ObjectB, Direction)]
+    Simplex: list[NDArray[np.float32]] = [get_simplex_points(ObjectA, ObjectB, Direction)]
 
     Direction = -Simplex[0]
 
     while True:
         
-        A: NDArray[np.float32] = _get_simplex_points(ObjectA, ObjectB, Direction)
+        A: NDArray[np.float32] = get_simplex_points(ObjectA, ObjectB, Direction)
 
         if np.dot(A, Direction) < 0:
-            return False
+            return False, Simplex
         
         Simplex.append(A)
 
         if _handle_simplex(Simplex, Direction):
-            print("True")
-            return True
+            return True, Simplex
+        
+def _check_aabb(ObjectA: P_Object, ObjectB: P_Object) -> bool:
+    """
+    A simple AABB detection to support the gjk algorithm
+
+    Args:
+        ObjectA (P_Object)
+        ObjectB (P_Object)
+
+    Returns:
+        bool
+    """
+    RadiusA: float = ObjectA.Side_Length / 1.5
+    RadiusB: float = ObjectB.Side_Length / 1.5
+
+    PositionA: NDArray[np.float32] = ObjectA.Position
+    PositionB: NDArray[np.float32] = ObjectB.Position
+
+    # X-axis
+    if abs(PositionA[0] - PositionB[0]) > (RadiusA + RadiusB):
+        return False
+    
+    # Y-axis
+    if abs(PositionA[1] - PositionB[1]) > (RadiusA + RadiusB):
+        return False
+    
+    # Z-axis
+    if abs(PositionA[2] - PositionB[2]) > (RadiusA + RadiusB):
+        return False
+    
+    return True

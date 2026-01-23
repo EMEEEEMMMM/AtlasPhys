@@ -3,20 +3,15 @@ import numpy as np
 from numpy.typing import NDArray
 from OpenGL.GL import *  # type: ignore
 from PyQt6.QtCore import QElapsedTimer, QModelIndex, QPointF, Qt, QTimer
-from PyQt6.QtGui import QSurfaceFormat, QMouseEvent, QKeyEvent  # QWheelEvent
+from PyQt6.QtGui import QSurfaceFormat, QMouseEvent, QKeyEvent, QWheelEvent
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
-from utils import MathPhys_utils, Opengl_utils, GJK
-from utils.G_Object import P_Object, Object_DataType, Coordinate_Axis, Plane
+import random
+import time
+import threading
 
-# IS_PERSPECTIVE = True                               # Perspective projection
-# VIEW = np.array([-0.8, 0.8, -0.8, 0.8, 1.0, 20.0])  # Visual body left/right/top/bottom/near/far six surface
-# Scale_K = np.array([1.0, 1.0, 1.0])                 # Model scaling ratio
-# EYE = np.array([0.0, 0.0, 2.0])                     # The position of the eyes (default positive Direction of the Z-axis)
-# LOOK_AT = np.array([0.0, 0.0, 0.0])                 # Reference point for aiming Direction (default at the coordinate origin)
-# EYE_UP = np.array([0.0, 1.0, 0.0])                  # Define the top (default positive Direction of the Y-axis) for the observer
-# WIN_W, WIN_H = 640, 480                             # Variables for saving the width and height of the window
-# LEFT_IS_DOWNED = False                              # The left mouse button was pressed
-# MOUSE_X, MOUSE_Y = 0, 0                             # The starting position saved when examining the mouse displacement
+from utils import MathPhys_utils, Opengl_utils, Generate_Objects
+from utils.G_Object import P_Object, Coordinate_Axis, Plane
+from utils import Step
 
 
 class Simulator(QOpenGLWidget):
@@ -32,18 +27,15 @@ class Simulator(QOpenGLWidget):
         self.CameraFront: NDArray[np.float32] = np.array(
             [0.0, 0.0, -1.0], dtype=np.float32
         )
-        self.CameraUP: NDArray[np.float32] = np.array(
-            [0.0, 1.0, 0.0], dtype=np.float32
-        )
+        self.CameraUP: NDArray[np.float32] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
         self.Scale_K: NDArray[np.float32] = np.array([1.0, 1.0, 1.0])
         self.IS_PERSPECTIVE: bool = True
         self.COORDINATE_AXIS: bool = False
+        self.DemoLoaded: bool = False
         self.PLANE: bool = False
         self.START_OR_STOP: bool = True
-        self.VIEW: NDArray[np.float32] = np.array(
-            [-0.8, 0.8, -0.8, 0.8, 1.0, 20.0]
-        )
+        self.VIEW: NDArray[np.float32] = np.array([-0.8, 0.8, -0.8, 0.8, 1.0, 20.0])
         self.Yaw: float = -90.0
         self.Pitch: float = 0.0
 
@@ -59,7 +51,8 @@ class Simulator(QOpenGLWidget):
 
         self.LastTime: float = self.get_time()
 
-
+        self.Accmulator: float = 0.0
+        self.PhysicsStep: float = 0.01
 
     def initializeGL(self) -> None:
         self.fmt = QSurfaceFormat()
@@ -77,11 +70,16 @@ class Simulator(QOpenGLWidget):
 
     def paintGL(self) -> None:
         self.makeCurrent()
+        w: int
+        h: int
         w, h = self.width(), self.height()
-        
+
         CurrentTime: float = self.get_time()
         DeltaTime: float = CurrentTime - self.LastTime
         self.LastTime = CurrentTime
+
+        if DeltaTime > 0.05:
+            DeltaTime = 0.05
 
         if self.IS_PERSPECTIVE:
             # Perspective Projection (glFrustum)
@@ -126,7 +124,6 @@ class Simulator(QOpenGLWidget):
         ViewMatrix: NDArray[np.float32] = Opengl_utils.lookat(
             self.CameraPos, self.CameraPos + self.CameraFront, self.CameraUP
         )
-        
 
         glUseProgram(self.shader_program)
 
@@ -135,22 +132,27 @@ class Simulator(QOpenGLWidget):
         ModelLocation = glGetUniformLocation(self.shader_program, "model")
 
         glUniformMatrix4fv(ProjLocation, 1, GL_FALSE, projection.T.flatten())
-        glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, ViewMatrix.T.flatten()) 
+        glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, ViewMatrix.T.flatten())
 
         LightColor = glGetUniformLocation(self.shader_program, "lightColor")
         glUniform4f(LightColor, 1.0, 1.0, 1.0, 1.0)
 
-        if self.START_OR_STOP and DeltaTime > 0.0:
-            for obj in self.Graphics:
-                obj.update_position(DeltaTime)
-                
-                idx: int = self.Graphics.index(obj) + 1
+        if self.START_OR_STOP:
+            self.Accmulator += DeltaTime
 
-                for i in range(idx, len(self.Graphics)):
-                    GJK.check_collison(obj, self.Graphics[i])
+            while self.Accmulator >= self.PhysicsStep:
+                Step.integrator(self.Graphics, DeltaTime)
+
+                for idx, obj in enumerate(self.Graphics):
+                    for i in range(idx + 1, len(self.Graphics)):
+                        Step.the_collision(obj, self.Graphics[i])
+
+                self.Accmulator -= self.PhysicsStep
 
         for obj in self.Graphics:
             ModelMatrix: NDArray[np.float32] = obj.get_model_matrix()
+            ScaleMatrix: NDArray[np.float32] = Opengl_utils.scalef(self.Scale_K)
+            ModelMatrix = ScaleMatrix @ ModelMatrix
             glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, ModelMatrix.T.flatten())
 
             glBindVertexArray(obj.VAO)
@@ -201,7 +203,7 @@ class Simulator(QOpenGLWidget):
             self.RightDown = False
 
     def keyPressEvent(self, a0: QKeyEvent) -> None:
-        CameraSpeed: float = 5.0 * 1 / 120
+        CameraSpeed: float = 10.0 * 1 / 120
 
         match a0.key():
             case Qt.Key.Key_W:
@@ -222,17 +224,23 @@ class Simulator(QOpenGLWidget):
                     * CameraSpeed
                 )
 
+            case Qt.Key.Key_Q:
+                self.CameraPos += CameraSpeed * self.CameraUP
+
+            case Qt.Key.Key_E:
+                self.CameraPos -= CameraSpeed * self.CameraUP
+
             case _:
                 pass
 
-    # def wheelEvent(self, a0: QWheelEvent) -> None:
-    #     delta: int = a0.angleDelta().y()
-    #     if delta > 0:
-    #         self.Scale_K *= 1.05
-    #     else:
-    #         self.Scale_K *= 0.95
+    def wheelEvent(self, a0: QWheelEvent) -> None:
+        delta: int = a0.angleDelta().y()
+        if delta > 0:
+            self.Scale_K *= 1.05
+        else:
+            self.Scale_K *= 0.95
 
-    #     self.update()
+        self.update()
 
     def resizeGL(self, w: int, h: int) -> None:
         glViewport(0, 0, w, h)
@@ -300,7 +308,7 @@ class Simulator(QOpenGLWidget):
         # fmt: on
 
         Vao, Vbo, Ebo = Opengl_utils.analysis_data(self, Vertices, Indices)
-        ObjectCompleteData: Object_DataType = {
+        ObjectCompleteData: dict[str, Any] = {
             "Shape": "CoordinateAxis",
             "Side_Length": 0.0,
             "Side_Length": 0.0,
@@ -311,6 +319,8 @@ class Simulator(QOpenGLWidget):
             "G_v": 1.0,
             "B_v": 1.0,
             "A_v": 1.0,
+            "Mass": float("inf"),
+            "Restitution": 0.0,
             "GL_Type": GL_LINES,
             "Vertices": Vertices,
             "Indices": Indices,
@@ -318,7 +328,7 @@ class Simulator(QOpenGLWidget):
             "Vbo": Vbo,
             "Ebo": Ebo,
         }
-        self.CoordinateObj: P_Object = Coordinate_Axis(ObjectCompleteData)
+        self.CoordinateObj: P_Object = Coordinate_Axis(**ObjectCompleteData)
         self.Graphics.append(self.CoordinateObj)
 
         index: int = len(self.Graphics)
@@ -339,21 +349,33 @@ class Simulator(QOpenGLWidget):
         # fmt: off
         Vertices: NDArray[np.float32] = np.array(
             [
-                -25.0, -1.5, 25, 0.5, 0.5, 0.5, 1.0,
-                25.0, -1.5, 25.0, 0.5, 0.5, 0.5, 1.0,
-                -25.0, -1.5, -25.0, 0.5, 0.5, 0.5, 1.0,
-                25.0, -1.5, -25.0, 0.5, 0.5, 0.5, 1.0,
+                -25.0, -1.0, 25.0, 0.5, 0.5, 0.5, 1.0,
+                25.0, -1.0, 25.0, 0.5, 0.5, 0.5, 1.0,
+                25.0, -1.0, -25.0, 0.5, 0.5, 0.5, 1.0,
+                -25.0, -1.0, -25.0, 0.5, 0.5, 0.5, 1.0,
+
+                -25.0, -2.0, 25.0, 0.5, 0.5, 0.5, 1.0,
+                25.0, -2.0, 25.0, 0.5, 0.5, 0.5, 1.0,
+                25.0, -2.0, -25.0, 0.5, 0.5, 0.5, 1.0,
+                -25.0, -2.0, -25.0, 0.5, 0.5, 0.5, 1.0,
             ],
             dtype=np.float32,
         )
 
-        Indices: NDArray[np.uint32] = np.array([0, 1, 2, 1, 3, 2], dtype=np.uint32)
+        Indices: NDArray[np.uint32] = np.array([
+            0, 1, 2, 2, 3, 0,       
+            4, 5, 6, 6, 7, 4,       
+            0, 1, 5, 5, 4, 0,       
+            2, 3, 7, 7, 6, 2,       
+            1, 2, 6, 6, 5, 1,       
+            3, 0, 4, 4, 7, 3
+        ],dtype=np.uint32)
 
         # fmt: on
 
         Vao, Vbo, Ebo = Opengl_utils.analysis_data(self, Vertices, Indices)
 
-        ObjectCData: Object_DataType = {
+        ObjectCData: dict[str, Any] = {
             "Shape": "Plane",
             "Side_Length": 50.0,
             "X_Coordinate": 0.0,
@@ -363,6 +385,8 @@ class Simulator(QOpenGLWidget):
             "G_v": 0.5,
             "B_v": 0.5,
             "A_v": 1.0,
+            "Mass": float("inf"),
+            "Restitution": 1.0,
             "GL_Type": GL_TRIANGLES,
             "Vertices": Vertices,
             "Indices": Indices,
@@ -371,7 +395,7 @@ class Simulator(QOpenGLWidget):
             "Ebo": Ebo,
         }
 
-        self.PlaneObj: P_Object = Plane(ObjectCData)
+        self.PlaneObj: P_Object = Plane(**ObjectCData)
 
         self.Graphics.append(self.PlaneObj)
         index: int = len(self.Graphics)
@@ -391,7 +415,7 @@ class Simulator(QOpenGLWidget):
     #     """
     #     self.makeCurrent()
     #     Vertices, Indices = Generate_Objects.generate_sphere(
-    #         5.0, 0.0, 10.0, 0.0, 10000, 10000
+    #         5.0, 0.0, 10.0, 0.0, 100, 100
     #     )
 
     #     # Vao
@@ -451,10 +475,83 @@ class Simulator(QOpenGLWidget):
             self.Time_Started = True
 
         return self.TIMER.elapsed() / 1000.0
-    
+
     def start_render(self) -> None:
         """
         Start the entire loop
         """
         self.LastTime = self.get_time()
-        
+
+    def load_demo(self) -> None:
+        """
+        Load the demo
+        """
+        self.window_self.AddOrDeletePlane.clicked.emit()
+        self.DemoLoaded = True
+        self.DemoThread = threading.Thread(target=self._demo_loop, daemon=True)
+        self.DemoThread.start()
+
+    def unload_demo(self) -> None:
+        """
+        Unload the demo
+        """
+        self.DemoLoaded = False
+        self.DemoThread.join()
+        self.window_self.ObjectList.clear_all()
+        self.COORDINATE_AXIS = False  # type: ignore
+        self.PLANE = False  # type: ignore
+
+        self.update()
+
+    def _demo_loop(self) -> None:
+        for _ in range(10):
+            if self.DemoLoaded and self.START_OR_STOP:
+                self.window_self.AddCube.clicked.emit()
+                time.sleep(1.0)
+
+    def add_demo_cube(self) -> None:
+        self.makeCurrent()
+
+        R_v: float = random.randint(0, 255) / 255.0
+        G_v: float = random.randint(0, 255) / 255.0
+        B_v: float = random.randint(0, 255) / 255.0
+
+        if R_v == 0.0 and G_v == 0.0 and B_v == 0.0:
+            R_v: float = random.randint(0, 255) / 255.0
+            G_v: float = random.randint(0, 255) / 255.0
+            B_v: float = random.randint(0, 255) / 255.0
+
+        IData: dict[str, Any] = {
+            "Side_Length": 2.0,
+            "X_Coordinate": random.randint(-10, 10),
+            "Y_Coordinate": 10.0,
+            "Z_Coordinate": random.randint(-10, 10),
+            "R_v": R_v,
+            "G_v": G_v,
+            "B_v": B_v,
+            "A_v": 1.0,
+        }
+
+        VIDATA = Generate_Objects.add_cube(**IData)
+
+        Vao, Vbo, Ebo = Opengl_utils.analysis_data(
+            self, VIDATA["Vertices"], VIDATA["Indices"]
+        )
+
+        CData: dict[str, Any] = (
+            {"Shape": "Cube"}
+            | IData
+            | {"Mass": 3.0, "Restitution": 0.3}
+            | VIDATA
+            | {"Vao": Vao, "Vbo": Vbo, "Ebo": Ebo}
+        )
+
+        OneOfTheCube: P_Object = P_Object(**CData)
+        self.Graphics.append(OneOfTheCube)
+
+        index: int = len(self.Graphics)
+
+        self.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+        self.window_self.ObjectList.endInsertRows()
+
+        self.update()

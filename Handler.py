@@ -1,6 +1,6 @@
 from typing import TypedDict, Any
 from PyQt6.QtWidgets import *  # type: ignore
-from PyQt6.QtCore import QModelIndex 
+from PyQt6.QtCore import QModelIndex
 import numpy as np
 from numpy.typing import NDArray
 from OpenGL.GL import *  # type: ignore
@@ -19,6 +19,8 @@ class ObjectDataType(TypedDict):
     G_v: float
     B_v: float
     A_v: float
+    Mass: float
+    Restitution: float
 
 
 class PushButtonEvent:
@@ -79,43 +81,55 @@ class PushButtonEvent:
         dialog: AddObjectDialog = AddObjectDialog(self.window)
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            data: ObjectDataType = dialog.get_data()  
+            data: ObjectDataType = dialog.get_data()
             print(data)
 
             Shape: str = data["Shape"]
-            IData = {key:val for key, val in data.items() if key != "Shape"}
+            IData = {
+                key: val
+                for key, val in data.items()
+                if key != "Shape" and key != "Mass" and key != "Restitution"
+            }
             match Shape:  # type: ignore
-                
+
                 case "Equilateral triangle":
                     ObjectData: dict[
                         str, int | NDArray[np.float32] | NDArray[np.uint32]
                     ] = Generate_Objects.add_triangle(**IData)
                     vao, vbo, ebo = Opengl_utils.analysis_data(
-                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"] # type: ignore
+                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"]  # type: ignore
                     )
-                    CData: dict[str, object] = data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
-                    Sustance: P_Object = P_Object(CData)  # type: ignore
+                    CData: dict[str, object] = (
+                        data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    )
+                    Sustance: P_Object = P_Object(**CData)  # type: ignore
                     self.window.OpenGLWindow.Graphics.append(Sustance)
 
                     index: int = len(self.window.OpenGLWindow.Graphics)
 
-                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(
+                        QModelIndex(), index, index
+                    )
                     self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
                 case "Square":
                     ObjectData: dict[
                         str, int | NDArray[np.float32] | NDArray[np.uint32]
-                    ] = Generate_Objects.add_square(**IData )
+                    ] = Generate_Objects.add_square(**IData)
                     vao, vbo, ebo = Opengl_utils.analysis_data(
-                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"] # type: ignore
+                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"]  # type: ignore
                     )
-                    CData: dict[str, object] = data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
-                    Sustance: P_Object = P_Object(CData)  # type: ignore
+                    CData: dict[str, object] = (
+                        data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    )
+                    Sustance: P_Object = P_Object(**CData)  # type: ignore
                     self.window.OpenGLWindow.Graphics.append(Sustance)
 
                     index: int = len(self.window.OpenGLWindow.Graphics)
 
-                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(
+                        QModelIndex(), index, index
+                    )
                     self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
                 case "Cube":
@@ -123,16 +137,20 @@ class PushButtonEvent:
                         str, int | NDArray[np.float32] | NDArray[np.uint32]
                     ] = Generate_Objects.add_cube(**IData)
                     vao, vbo, ebo = Opengl_utils.analysis_data(
-                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"] # type: ignore
+                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"]  # type: ignore
                     )
-                    CData: dict[str, object] = data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    CData: dict[str, object] = (
+                        data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    )
                     print(CData)
-                    Sustance: P_Object = P_Object(CData)  # type: ignore
+                    Sustance: P_Object = P_Object(**CData)  # type: ignore
                     self.window.OpenGLWindow.Graphics.append(Sustance)
 
                     index: int = len(self.window.OpenGLWindow.Graphics)
 
-                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(
+                        QModelIndex(), index, index
+                    )
                     self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
                 case "Sphere":
@@ -140,15 +158,19 @@ class PushButtonEvent:
                         str, int | NDArray[np.float32] | NDArray[np.uint32]
                     ] = Generate_Objects.add_sphere(**IData)
                     vao, vbo, ebo = Opengl_utils.analysis_data(
-                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"] # type: ignore
+                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"]  # type: ignore
                     )
-                    CData: dict[str, object] = data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
-                    Sustance: P_Object = P_Object(CData)  # type: ignore
+                    CData: dict[str, object] = (
+                        data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                    )
+                    Sustance: P_Object = P_Object(**CData)  # type: ignore
                     self.window.OpenGLWindow.Graphics.append(Sustance)
 
                     index: int = len(self.window.OpenGLWindow.Graphics)
 
-                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(
+                        QModelIndex(), index, index
+                    )
                     self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
     def start_or_stop(self) -> None:
@@ -159,6 +181,12 @@ class PushButtonEvent:
             self.window.OpenGLWindow.start_render()
             self.window.OpenGLWindow.START_OR_STOP = True
 
+    def load_or_reload_demo(self) -> None:
+        if self.window.OpenGLWindow.DemoLoaded:
+            self.window.OpenGLWindow.unload_demo()
+
+        else:
+            self.window.OpenGLWindow.load_demo()
 
     def delete_object(self) -> None:
         SelectedIndex: Any = self.window.ObjectListView.currentIndex()
@@ -227,6 +255,16 @@ class AddObjectDialog(QDialog):
             f"RGBA: r={self.r}, g={self.g}, b={self.b}, a={self.a}"
         )
 
+        self.Object_Mass = QDoubleSpinBox()
+        self.Object_Mass.setRange(0, 100)
+        self.Object_Mass.setValue(1)
+        self.Object_Mass.setDecimals(2)
+
+        self.Object_Restitution = QDoubleSpinBox()
+        self.Object_Restitution.setRange(0, 1)
+        self.Object_Restitution.setValue(0.3)
+        self.Object_Restitution.setDecimals(2)
+
         self.Accept_Reject = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             self,
@@ -239,6 +277,8 @@ class AddObjectDialog(QDialog):
         MainLayout.addWidget(self.Z_Coordinate)
         MainLayout.addWidget(self.ColorSelector)
         MainLayout.addWidget(self.ColorResult)
+        MainLayout.addWidget(self.Object_Mass)
+        MainLayout.addWidget(self.Object_Restitution)
         MainLayout.addWidget(self.Accept_Reject)
 
         self.setLayout(MainLayout)
@@ -258,6 +298,8 @@ class AddObjectDialog(QDialog):
             "G_v": self.g,
             "B_v": self.b,
             "A_v": self.a,
+            "Mass": self.Object_Mass.value(),
+            "Restitution": self.Object_Restitution.value(),
         }
 
     def show_color_dialog(self) -> None:

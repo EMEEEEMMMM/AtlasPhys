@@ -5,7 +5,10 @@ from Handler import PushButtonEvent
 from typing import Any, Optional
 from utils import G_Object
 
+
 class MainWindow(QMainWindow):
+    
+
     def __init__(self) -> None:
         super().__init__()
         self.init_ui()
@@ -27,8 +30,11 @@ class MainWindow(QMainWindow):
         SwitchP_Mode = QPushButton("Switch projection mode")
         AddObjects = QPushButton("Add Objects")
         AddOrDeleteCoordinateAxis = QPushButton("Add/Delete Coordinate Axis")
-        AddOrDeletePlane = QPushButton("Add/Delete the plane")
+        self.AddOrDeletePlane = QPushButton("Add/Delete the plane")
         StartOrStop = QPushButton("Start/Stop the simulator")
+        LoadDemo = QPushButton("Load/Unload the demo")
+        self.AddCube = QPushButton()
+
 
         Slider_Label = QLabel("Properties")
         Slider1_Label = QLabel("Slider 1")
@@ -61,8 +67,9 @@ class MainWindow(QMainWindow):
         LeftSidebarLayout.addWidget(SwitchP_Mode)
         LeftSidebarLayout.addWidget(AddObjects)
         LeftSidebarLayout.addWidget(AddOrDeleteCoordinateAxis)
-        LeftSidebarLayout.addWidget(AddOrDeletePlane)
+        LeftSidebarLayout.addWidget(self.AddOrDeletePlane)
         LeftSidebarLayout.addWidget(StartOrStop)
+        LeftSidebarLayout.addWidget(LoadDemo)
 
         LeftSidebarLayout.addWidget(Slider_Label)
         LeftSidebarLayout.addWidget(Slider1_Label)
@@ -104,14 +111,15 @@ class MainWindow(QMainWindow):
         AddOrDeleteCoordinateAxis.clicked.connect(
             lambda: self.PushButtonEvent.add_or_delelte_coordinate_axis()
         )
-        AddOrDeletePlane.clicked.connect(
+        self.AddOrDeletePlane.clicked.connect(
             lambda: self.PushButtonEvent.add_or_delelte_plane()
         )
-        StartOrStop.clicked.connect(
-            lambda: self.PushButtonEvent.start_or_stop()
-        )
-
+        StartOrStop.clicked.connect(lambda: self.PushButtonEvent.start_or_stop())
+        LoadDemo.clicked.connect(lambda: self.PushButtonEvent.load_or_reload_demo())
         DeleteObjectBtn.clicked.connect(lambda: self.PushButtonEvent.delete_object())
+
+        self.AddCube.clicked.connect(lambda: self.OpenGLWindow.add_demo_cube())
+        
         self.ObjectListView.setSelectionMode(QListView.SelectionMode.SingleSelection)
         self.ObjectListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
 
@@ -148,7 +156,7 @@ class ListObjectModel(QAbstractListModel):
         if index.isValid():
             self.beginRemoveRows(QModelIndex(), index.row(), index.row())
             obj: G_Object.P_Object = self.ObjectList[index.row()]
-            
+
             match obj.Shape:
 
                 case "CoordinateAxis":
@@ -168,3 +176,7 @@ class ListObjectModel(QAbstractListModel):
                     del self.ObjectList[index.row()]
                     self.endRemoveRows()
 
+    def clear_all(self) -> None:
+        self.beginRemoveRows(QModelIndex(), 0, len(self.ObjectList) - 1)
+        self.ObjectList.clear()
+        self.endRemoveRows()

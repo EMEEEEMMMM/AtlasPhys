@@ -44,7 +44,6 @@ def rotate_vector(
 
     return V_Rotated
 
-
 def normalize(arr: NDArray[np.float32]) -> NDArray[np.float32]:
     """
     To normalize a array
@@ -57,8 +56,10 @@ def normalize(arr: NDArray[np.float32]) -> NDArray[np.float32]:
     """
     Normalized: np.float32 = np.linalg.norm(arr)
 
-    return arr / Normalized
+    if Normalized == 0:
+        return np.zeros_like(arr)
 
+    return arr / Normalized
 
 def scale_matrix(Sx: float, Sy: float, Sz: float) -> NDArray[np.float32]:
     """
@@ -77,7 +78,6 @@ def scale_matrix(Sx: float, Sy: float, Sz: float) -> NDArray[np.float32]:
     ScaleMatrix[Rows, Cols] = [Sx, Sy, Sz, 1.0]
 
     return ScaleMatrix
-
 
 def translation_matrix(Tx: float, Ty: float, Tz: float) -> NDArray[np.float32]:
     """
@@ -98,7 +98,6 @@ def translation_matrix(Tx: float, Ty: float, Tz: float) -> NDArray[np.float32]:
 
     return TranslationMatrix
 
-
 def _rotation_matrix_x(angle: float) -> NDArray[np.float32]:
     """
     To create a rotation matrix in order to rotate the target matrix around the x axis
@@ -117,7 +116,6 @@ def _rotation_matrix_x(angle: float) -> NDArray[np.float32]:
     RotationMatrix[2, 2] = np.cos(angle)
 
     return RotationMatrix
-
 
 def _rotation_matrix_y(angle: float) -> NDArray[np.float32]:
     """
@@ -138,7 +136,6 @@ def _rotation_matrix_y(angle: float) -> NDArray[np.float32]:
 
     return RotationMatrix
 
-
 def _rotation_matrix_z(angle: float) -> NDArray[np.float32]:
     """
     To create a rotation matrix in order to rotate the target matrix around the z axis
@@ -157,7 +154,6 @@ def _rotation_matrix_z(angle: float) -> NDArray[np.float32]:
     RotationMatrix[1, 1] = np.cos(angle)
 
     return RotationMatrix
-
 
 def rotation_matrix(
     Angle_X: float, Angle_Y: float, Angle_Z: float
@@ -182,23 +178,19 @@ def rotation_matrix(
 
     return Rot_Matrix
 
-
-def displacement_Uacceleration(
-    Velocity_i: float, Uacceleration: float, DeltaTime: float
+def linear_scalar_impulse(
+    Restitution: float, VrelNormal: float, R_MassA: float, R_MassB: float
 ) -> float:
     """
-    To calculate the displacement of objects that have uniformed acceleration
+    Calculate the scalar of the impulse
 
     Args:
-        Velocity_i (float): inital velocity
-        Uacceleration (float): the uniform acceleration
-        DeltaTime (float): how long the object is traveling
+        Restitution (float): the restitution of the object
+        VrelNormal (float): the relative velocity along the normal
+        R_MassA (float): the reciprocal of the mass of objectA
+        R_MassB (float): the reciprocal of the mass of objectB
 
     Returns:
-        float: the displacement
+        float: the scalar of the impulse
     """
-    Displacement: float = Velocity_i * DeltaTime + 1 / 2 * Uacceleration * (
-        DeltaTime**2
-    )
-
-    return Displacement
+    return (-(1 + Restitution) * VrelNormal) / (R_MassA + R_MassB)

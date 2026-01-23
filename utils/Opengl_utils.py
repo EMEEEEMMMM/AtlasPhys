@@ -125,7 +125,7 @@ def lookat(
     return ViewMatrix
 
 
-def scalef(scale: NDArray[np.float32]):
+def scalef(scale: NDArray[np.float32]) -> NDArray[np.float32]:
     """
     Calculate the scaling matrix
     Replace the method glScalef in order to use the core mode of the shaders
