@@ -1,7 +1,8 @@
 import numpy as np
 from numpy.typing import NDArray
+from numba import njit   # type: ignore
 
-GRAVITY: float = -9.8
+GRAVITY: NDArray[np.float32] = np.array([0.0, -9.8, 0.0], dtype=np.float32)
 
 
 def rotate_vector(
@@ -44,6 +45,8 @@ def rotate_vector(
 
     return V_Rotated
 
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def normalize(arr: NDArray[np.float32]) -> NDArray[np.float32]:
     """
     To normalize a array
@@ -60,6 +63,7 @@ def normalize(arr: NDArray[np.float32]) -> NDArray[np.float32]:
         return np.zeros_like(arr)
 
     return arr / Normalized
+
 
 def scale_matrix(Sx: float, Sy: float, Sz: float) -> NDArray[np.float32]:
     """
@@ -79,6 +83,8 @@ def scale_matrix(Sx: float, Sy: float, Sz: float) -> NDArray[np.float32]:
 
     return ScaleMatrix
 
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def translation_matrix(Tx: float, Ty: float, Tz: float) -> NDArray[np.float32]:
     """
     To create a translation matrix in order to translate a matrix
@@ -98,6 +104,8 @@ def translation_matrix(Tx: float, Ty: float, Tz: float) -> NDArray[np.float32]:
 
     return TranslationMatrix
 
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def _rotation_matrix_x(angle: float) -> NDArray[np.float32]:
     """
     To create a rotation matrix in order to rotate the target matrix around the x axis
@@ -117,6 +125,8 @@ def _rotation_matrix_x(angle: float) -> NDArray[np.float32]:
 
     return RotationMatrix
 
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def _rotation_matrix_y(angle: float) -> NDArray[np.float32]:
     """
     To create a rotation matrix in order to rotate the target matrix around the y axis
@@ -136,6 +146,8 @@ def _rotation_matrix_y(angle: float) -> NDArray[np.float32]:
 
     return RotationMatrix
 
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def _rotation_matrix_z(angle: float) -> NDArray[np.float32]:
     """
     To create a rotation matrix in order to rotate the target matrix around the z axis
@@ -155,6 +167,8 @@ def _rotation_matrix_z(angle: float) -> NDArray[np.float32]:
 
     return RotationMatrix
 
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def rotation_matrix(
     Angle_X: float, Angle_Y: float, Angle_Z: float
 ) -> NDArray[np.float32]:
@@ -177,6 +191,7 @@ def rotation_matrix(
     Rot_Matrix: NDArray[np.float32] = Rot_Matrix_Z @ Rot_Matrix_Y @ Rot_Matrix_X  # type: ignore
 
     return Rot_Matrix
+
 
 def linear_scalar_impulse(
     Restitution: float, VrelNormal: float, R_MassA: float, R_MassB: float

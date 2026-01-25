@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray
+from numba import njit, jit  # type: ignore
 
 from utils.G_Object import P_Object
 from utils.GJK import get_simplex_points

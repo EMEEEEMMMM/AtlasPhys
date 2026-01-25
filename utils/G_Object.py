@@ -3,7 +3,6 @@ from typing import Any
 from numpy.typing import NDArray
 
 from utils import MathPhys_utils
-from utils.Decorator import nb_accelerate
 
 
 class P_Object:
@@ -72,9 +71,7 @@ class P_Object:
         )
         self.set_gravity()
 
-    @staticmethod
-    @nb_accelerate(nogil=True, fastmath=True, cache=True)
-    def _update_position(
+    def _update_position(self,
         Velocity: NDArray[np.float32],
         Position: NDArray[np.float32],
         Acceleration: NDArray[np.float32],

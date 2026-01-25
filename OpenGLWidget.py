@@ -29,7 +29,7 @@ class Simulator(QOpenGLWidget):
         )
         self.CameraUP: NDArray[np.float32] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
-        self.Scale_K: NDArray[np.float32] = np.array([1.0, 1.0, 1.0])
+        self.Scale_K: NDArray[np.float32] = np.array([1.0, 1.0, 1.0], dtype=np.float32)
         self.IS_PERSPECTIVE: bool = True
         self.COORDINATE_AXIS: bool = False
         self.DemoLoaded: bool = False
@@ -57,9 +57,16 @@ class Simulator(QOpenGLWidget):
     def initializeGL(self) -> None:
         self.fmt = QSurfaceFormat()
         self.fmt.setVersion(3, 3)
+        self.fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        self.fmt.setDepthBufferSize(24)
+        self.fmt.setStencilBufferSize(8)
+        self.setFormat(self.fmt)
+        self.setAutoFillBackground(False)
 
-        glClearColor(0.0, 0.0, 0.0, 1.0)
         glEnable(GL_DEPTH_TEST)
+        # glEnable(GL_CULL_FACE)
+        glClearColor(0.1, 0.1, 0.1, 1.0)
+        print("当前渲染器:", glGetString(GL_RENDERER).decode())  # type: ignore
         # Enable depth testing to achieve occlusion relationships
         self.shader_program = self.compile_shaders()
         glDepthFunc(GL_LEQUAL)
@@ -141,7 +148,14 @@ class Simulator(QOpenGLWidget):
             self.Accmulator += DeltaTime
 
             while self.Accmulator >= self.PhysicsStep:
-                Step.integrator(self.Graphics, DeltaTime)
+                Positions: NDArray[np.float32]
+                Velocities: NDArray[np.float32]
+                DynamicObjects: list[P_Object]
+                Positions, Velocities, DynamicObjects = Step.extract_data(self.Graphics)
+
+                Step.integrator(Positions, Velocities, DeltaTime)
+
+                Step.update_data(Positions, Velocities, DynamicObjects)
 
                 for idx, obj in enumerate(self.Graphics):
                     for i in range(idx + 1, len(self.Graphics)):

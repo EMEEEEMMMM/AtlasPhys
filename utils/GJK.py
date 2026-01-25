@@ -1,9 +1,15 @@
 from numpy.typing import NDArray
 import numpy as np
+from numba import njit  # type: ignore
+
 from utils.G_Object import P_Object
 
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def _support_function_polygon(
-    ObjectA: P_Object, Direction: NDArray[np.float32]
+    Direction: NDArray[np.float32],
+    ModelMatrix: NDArray[np.float32],
+    XYZVertices: NDArray[np.float32],
 ) -> NDArray[np.float32]:
     """
     The support function of gjk
@@ -35,21 +41,21 @@ def _support_function_polygon(
     World Point = Matrix * Point
     """
 
-    ModelMatrix: NDArray[np.float32] = ObjectA.get_model_matrix()
+    Direction4D: NDArray[np.float32] = np.append(Direction, np.float32(0.0))
 
-    Direction4D: NDArray[np.float32] = np.append(Direction, 0.0)
-    
-    LocalDirection = np.dot(Direction4D, ModelMatrix)[:3]   # * only need x,y,z
+    LocalDirection = np.dot(Direction4D, ModelMatrix)[:3]  # * only need x,y,z
 
-    Vertices: NDArray[np.float32] = ObjectA.XYZVertices
+    Vertices: NDArray[np.float32] = XYZVertices
 
     idx: np.intp = np.argmax(np.dot(Vertices, LocalDirection))
 
     BestLocalPoint: NDArray[np.float32] = Vertices[idx]
 
-    Point4D: NDArray[np.float32] = np.append(BestLocalPoint, 1.0)
+    Point4D: NDArray[np.float32] = np.append(BestLocalPoint, np.float32(1.0))
 
-    BestWorldPoint: NDArray[np.float32] = np.dot(ModelMatrix, Point4D)[:3]   # * only need x,y,z
+    BestWorldPoint: NDArray[np.float32] = np.dot(ModelMatrix, Point4D)[
+        :3
+    ]  # * only need x,y,z
 
     return BestWorldPoint  # type: ignore
 
@@ -68,8 +74,12 @@ def get_simplex_points(
     Returns:
         NDArray[np.float32]: The coordinate of the final point on simplex
     """
-    PointA: NDArray[np.float32] = _support_function_polygon(ShapeA, Direction)
-    PointB: NDArray[np.float32] = _support_function_polygon(ShapeB, -Direction)
+    PointA: NDArray[np.float32] = _support_function_polygon(
+        Direction, ShapeA.get_model_matrix(), ShapeA.XYZVertices
+    )
+    PointB: NDArray[np.float32] = _support_function_polygon(
+        -Direction, ShapeB.get_model_matrix(), ShapeB.XYZVertices
+    )
 
     return PointA - PointB
 
@@ -102,7 +112,9 @@ def _handle_simplex(
             return False
 
 
-def _linear_case(Simplex: list[NDArray[np.float32]], Direction: NDArray[np.float32]) -> bool:
+def _linear_case(
+    Simplex: list[NDArray[np.float32]], Direction: NDArray[np.float32]
+) -> bool:
     """
     The case when the simplex is a straight line (contains two points)
 
@@ -159,16 +171,16 @@ def _triangle_case(
         if np.dot(AC, AO) > 0:
             del Simplex[1]
             Direction[:] = np.cross(np.cross(AC, AO), AC)
-        
-        else: 
+
+        else:
             del Simplex[0]
             return _linear_case(Simplex, Direction)
-        
-    else: 
+
+    else:
         if np.dot(np.cross(AB, ABC), AO) > 0:
             del Simplex[0]
             return _linear_case(Simplex, Direction)
-        
+
         else:
             if np.dot(ABC, AO) > 0:
                 Direction[:] = ABC
@@ -178,10 +190,13 @@ def _triangle_case(
                 Simplex[0], Simplex[1] = Simplex[1], Simplex[0]
 
             return False
-        
+
     return False
 
-def _tetrahedron_case(Simplex: list[NDArray[np.float32]], Direction: NDArray[np.float32]) -> bool:
+
+def _tetrahedron_case(
+    Simplex: list[NDArray[np.float32]], Direction: NDArray[np.float32]
+) -> bool:
     """
     The case when the simplex is a tetrahedron (contains four points)
 
@@ -192,9 +207,12 @@ def _tetrahedron_case(Simplex: list[NDArray[np.float32]], Direction: NDArray[np.
     Returns:
         bool: The result whether had collision
     """
-    A: float; B: float; C: float; D: float
+    A: float
+    B: float
+    C: float
+    D: float
 
-    D, C, B, A = Simplex   # type: ignore
+    D, C, B, A = Simplex  # type: ignore
     AB: float = B - A
     AC: float = C - A
     AD: float = D - A
@@ -207,18 +225,21 @@ def _tetrahedron_case(Simplex: list[NDArray[np.float32]], Direction: NDArray[np.
     if np.dot(ABC, AO) > 0:
         del Simplex[0]
         return _triangle_case(Simplex, Direction)
-    
+
     if np.dot(ACD, AO) > 0:
         del Simplex[2]
         return _triangle_case(Simplex, Direction)
-    
+
     if np.dot(ADB, AO) > 0:
         del Simplex[1]
         return _triangle_case(Simplex, Direction)
-    
+
     return True
 
-def check_collison(ObjectA: P_Object, ObjectB: P_Object) -> tuple[bool, list[NDArray[np.float32]]]:
+
+def check_collison(
+    ObjectA: P_Object, ObjectB: P_Object
+) -> tuple[bool, list[NDArray[np.float32]]]:
     """
     The main function to detect whether two obejcts had collision
 
@@ -230,28 +251,39 @@ def check_collison(ObjectA: P_Object, ObjectB: P_Object) -> tuple[bool, list[NDA
         bool: whether the two objects collide
     """
 
-    if not _check_aabb(ObjectA, ObjectB):
+    if not _check_aabb(
+        ObjectA.Side_Length, ObjectB.Side_Length, ObjectA.Position, ObjectB.Position
+    ):
         return False, []
 
     Direction: NDArray[np.float32] = np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
-    Simplex: list[NDArray[np.float32]] = [get_simplex_points(ObjectA, ObjectB, Direction)]
+    Simplex: list[NDArray[np.float32]] = [
+        get_simplex_points(ObjectA, ObjectB, Direction)
+    ]
 
     Direction = -Simplex[0]
 
     while True:
-        
+
         A: NDArray[np.float32] = get_simplex_points(ObjectA, ObjectB, Direction)
 
         if np.dot(A, Direction) < 0:
             return False, Simplex
-        
+
         Simplex.append(A)
 
         if _handle_simplex(Simplex, Direction):
             return True, Simplex
-        
-def _check_aabb(ObjectA: P_Object, ObjectB: P_Object) -> bool:
+
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
+def _check_aabb(
+    Side_Length_A: float,
+    Side_Length_B: float,
+    Position_A: NDArray[np.float32],
+    Position_B: NDArray[np.float32],
+) -> bool:
     """
     A simple AABB detection to support the gjk algorithm
 
@@ -262,22 +294,22 @@ def _check_aabb(ObjectA: P_Object, ObjectB: P_Object) -> bool:
     Returns:
         bool
     """
-    RadiusA: float = ObjectA.Side_Length / 1.5
-    RadiusB: float = ObjectB.Side_Length / 1.5
+    RadiusA: float = Side_Length_A / 2.0
+    RadiusB: float = Side_Length_B / 2.0
 
-    PositionA: NDArray[np.float32] = ObjectA.Position
-    PositionB: NDArray[np.float32] = ObjectB.Position
+    PositionA: NDArray[np.float32] = Position_A
+    PositionB: NDArray[np.float32] = Position_B
 
     # X-axis
     if abs(PositionA[0] - PositionB[0]) > (RadiusA + RadiusB):
         return False
-    
+
     # Y-axis
     if abs(PositionA[1] - PositionB[1]) > (RadiusA + RadiusB):
         return False
-    
+
     # Z-axis
     if abs(PositionA[2] - PositionB[2]) > (RadiusA + RadiusB):
         return False
-    
+
     return True

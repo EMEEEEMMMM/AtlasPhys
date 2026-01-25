@@ -1,33 +1,75 @@
 import numpy as np
 from numpy.typing import NDArray
 import os
+from numba import njit  # type: ignore
 
 from utils.G_Object import P_Object
 from utils.GJK import check_collison
 from utils.EPA import epa
-from utils.MathPhys_utils import linear_scalar_impulse
+from utils.MathPhys_utils import linear_scalar_impulse, GRAVITY
 
 MAX_WORKERS: int = os.cpu_count()  # type: ignore
 
 
-def integrator(Objects: list[P_Object], Deltatime: float) -> None:
+@njit(nogil=True, fastmath=True, cache=True, parallel=False)    # type: ignore
+def integrator(
+    Positions: NDArray[np.float32], Velocities: NDArray[np.float32], DeltaTime: float
+) -> None:
     """
     The integrator which applies gravity to the object and update its position based on the velocity and deltatime
+    Update: numba version
 
     Args:
         Objects (list[P_Object]): The object that need to be updated
         Deltatime (float)
     """
-    # with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-    #     executor.map(lambda obj: _update_obj(obj, Deltatime), Objects) # type: ignore
+    N: int = len(Positions)
+
+    for i in range(N):
+        Velocities[i] += GRAVITY * DeltaTime
+        Positions[i] += Velocities[i] * DeltaTime
+
+
+def extract_data(
+    Objects: list[P_Object],
+) -> tuple[NDArray[np.float32], NDArray[np.float32], list[P_Object]]:
+    """
+    Extract positions and velocities of every P_Object(except the Plane and Coordinate_axis)
+    To support for the numba version of the integrator
+
+    Args:
+        Objects (list[P_Object])
+
+    Returns:
+        NDArray[np.float32]: positions, velocities, dynamic objects
+    """
+    DynamicObjects: list[P_Object] = []
     for obj in Objects:
-        if not obj.Collidable:
-            continue
+        if obj.Shape not in ["Plane", "CoordinateAxis"] and obj.Collidable:
+            DynamicObjects.append(obj)
 
-        if obj.ReciprocalMass == 0.0:
-            continue
+    N: int = len(DynamicObjects)
+    Positions: NDArray[np.float32] = np.zeros((N, 3), dtype=np.float32)
+    Velocities: NDArray[np.float32] = np.zeros((N, 3), dtype=np.float32)
 
-        obj.update_position(Deltatime)
+    for i, obj in enumerate(DynamicObjects):
+        Positions[i] = obj.Position
+        Velocities[i] = obj.Velocity
+
+    return Positions, Velocities, DynamicObjects
+
+def update_data(NewPositions: NDArray[np.float32], NewVelocities: NDArray[np.float32], DynamicObjects: list[P_Object]) -> None:
+    """
+    To update the data from the integrator to the objects
+
+    Args:
+        NewPositions (NDArray[np.float32])
+        NewVelocities (NDArray[np.float32])
+        DynamicObjects (list[P_Object])
+    """
+    for i, obj in enumerate(DynamicObjects):
+        obj.Position = NewPositions[i]
+        obj.Velocity = NewVelocities[i]
 
 
 def the_collision(ObjectA: P_Object, ObjectB: P_Object) -> None:
@@ -81,7 +123,7 @@ def the_collision(ObjectA: P_Object, ObjectB: P_Object) -> None:
     e: float = min(ObjectA.Restitution, ObjectB.Restitution)
 
     if VrelNormal < 0.5:
-        e = 0.0
+        e *= 0.5
 
     Scalar_Impulse: float = linear_scalar_impulse(e, VrelNormal, InvMassA, InvMassB)
 

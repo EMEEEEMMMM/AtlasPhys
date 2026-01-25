@@ -5,6 +5,7 @@
 1. Add a slightly real light source
 2. Optimize the loop since (now barely support for 10 cubes)
 3. Maybe turn to taichi or numba someday
+4. Fix when two cubes have the same x, z collide they will crush into each other and the top sink into the bottom utill they coincide
 
 
 ## DONE:

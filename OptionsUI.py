@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         self.AddOrDeletePlane = QPushButton("Add/Delete the plane")
         StartOrStop = QPushButton("Start/Stop the simulator")
         LoadDemo = QPushButton("Load/Unload the demo")
-        self.AddCube = QPushButton()
+        self.AddCube = QPushButton("Shortcut to add a cube")
 
 
         Slider_Label = QLabel("Properties")
@@ -70,6 +70,7 @@ class MainWindow(QMainWindow):
         LeftSidebarLayout.addWidget(self.AddOrDeletePlane)
         LeftSidebarLayout.addWidget(StartOrStop)
         LeftSidebarLayout.addWidget(LoadDemo)
+        LeftSidebarLayout.addWidget(self.AddCube)
 
         LeftSidebarLayout.addWidget(Slider_Label)
         LeftSidebarLayout.addWidget(Slider1_Label)

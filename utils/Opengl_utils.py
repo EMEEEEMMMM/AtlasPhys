@@ -1,10 +1,13 @@
 import sys
 import numpy as np
 from numpy.typing import NDArray
+from numba import njit   # type: ignore
 from typing import Any
 import os
-from OpenGL.GL import * # type: ignore
+from OpenGL.GL import *  # type: ignore
 
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def perspective_projection(
     left: np.float32,
     right: np.float32,
@@ -39,6 +42,7 @@ def perspective_projection(
     return Matrix
 
 
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def ortho_projection(
     left: np.float32,
     right: np.float32,
@@ -73,6 +77,7 @@ def ortho_projection(
     return Matrix
 
 
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def lookat(
     EYE: NDArray[np.float32],
     LOOK_AT: NDArray[np.float32],
@@ -91,7 +96,9 @@ def lookat(
         NDArray[np.float32]
     """
     CameraDirection: NDArray[np.float32] = LOOK_AT - EYE
-    CameraDirection = (CameraDirection / np.linalg.norm(CameraDirection)).astype(np.float32)
+    CameraDirection = (CameraDirection / np.linalg.norm(CameraDirection)).astype(
+        np.float32
+    )
 
     CameraRight: NDArray[np.float32] = np.cross(CameraDirection, EYE_UP)
     CameraRight = (CameraRight / np.linalg.norm(CameraRight)).astype(np.float32)
@@ -111,10 +118,10 @@ def lookat(
     ViewMatrix[0, 1] = CameraRight[1]
     ViewMatrix[0, 2] = CameraRight[2]
     ViewMatrix[0, 3] = Translation[0]
-    
+
     ViewMatrix[1, 0] = CameraUP[0]
-    ViewMatrix[1, 1] = CameraUP[1] 
-    ViewMatrix[1, 2] = CameraUP[2] 
+    ViewMatrix[1, 1] = CameraUP[1]
+    ViewMatrix[1, 2] = CameraUP[2]
     ViewMatrix[1, 3] = Translation[1]
 
     ViewMatrix[2, 0] = -CameraDirection[0]
@@ -124,7 +131,7 @@ def lookat(
 
     return ViewMatrix
 
-
+@njit(nogil=True, fastmath=True, cache=True)   # type: ignore
 def scalef(scale: NDArray[np.float32]) -> NDArray[np.float32]:
     """
     Calculate the scaling matrix
@@ -134,10 +141,13 @@ def scalef(scale: NDArray[np.float32]) -> NDArray[np.float32]:
         scale (float)
     """
 
-    return np.array(
-        [[scale[0], 0, 0, 0], [0, scale[1], 0, 0], [0, 0, scale[2], 0], [0, 0, 0, 1]],
-        dtype=np.float32,
-    )
+    Matrix: NDArray[np.float32] = np.empty((4, 4), dtype=np.float32)
+    Matrix.fill(0.0)
+    Matrix[0, 0] = scale[0]
+    Matrix[1, 1] = scale[1]
+    Matrix[2, 2] = scale[2]
+    Matrix[3, 3] = 1.0
+    return Matrix
 
 
 def load_shader(file_path: str):
@@ -158,34 +168,33 @@ def load_shader(file_path: str):
     with open(dir, "r") as f:
         return f.read()
 
+
 def analysis_data(
-        window: Any,
-        Vertices: NDArray[np.float32],
-        Indices: NDArray[np.uint32],
-    ) -> tuple[int, int, int]:
-        window.makeCurrent()
+    window: Any,
+    Vertices: NDArray[np.float32],
+    Indices: NDArray[np.uint32],
+) -> tuple[int, int, int]:
+    window.makeCurrent()
 
-        vao: int = glGenVertexArrays(1)  # type: ignore
-        glBindVertexArray(vao)
+    vao: int = glGenVertexArrays(1)  # type: ignore
+    glBindVertexArray(vao)
 
-        vbo: int = glGenBuffers(1)  # type: ignore
-        glBindBuffer(GL_ARRAY_BUFFER, vbo)
-        glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
+    vbo: int = glGenBuffers(1)  # type: ignore
+    glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    glBufferData(GL_ARRAY_BUFFER, Vertices.nbytes, Vertices, GL_STATIC_DRAW)
 
-        ebo: int = glGenBuffers(1)  # type: ignore
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
+    ebo: int = glGenBuffers(1)  # type: ignore
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, Indices.nbytes, Indices, GL_STATIC_DRAW)
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(0)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
+    glEnableVertexAttribArray(0)
 
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
-        glEnableVertexAttribArray(1)
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
+    glEnableVertexAttribArray(1)
 
-        glBindVertexArray(0)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+    glBindVertexArray(0)
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
-        return (vao, vbo, ebo)  # type: ignore
-
-
+    return (vao, vbo, ebo)  # type: ignore

@@ -16,10 +16,11 @@ def add_triangle(
     A_v: float,
 ) -> dict[str, int | NDArray[np.float32] | NDArray[np.uint32]]:
     # fmt:off
+    X, Y, Z = 0.0, 0.0, 0.0
     Vertices: NDArray[np.float32] = np.array([
-        X_Coordinate - (Side_Length / 2), Y_Coordinate - (np.power(3,1 / 2) / 6 * Side_Length), Z_Coordinate, R_v, G_v, B_v, A_v,
-        X_Coordinate + (Side_Length / 2), Y_Coordinate - (np.power(3,1 / 2) / 6 * Side_Length), Z_Coordinate, R_v, G_v, B_v, A_v,
-        X_Coordinate, Y_Coordinate + (np.power(3,1 / 2) / 3 * Side_Length), Z_Coordinate, R_v, G_v, B_v, A_v,
+        X - (Side_Length / 2), Y - (np.power(3,1 / 2) / 6 * Side_Length), Z, R_v, G_v, B_v, A_v,
+        X + (Side_Length / 2), Y - (np.power(3,1 / 2) / 6 * Side_Length), Z, R_v, G_v, B_v, A_v,
+        X, Y + (np.power(3,1 / 2) / 3 * Side_Length), Z, R_v, G_v, B_v, A_v,
         ],dtype=np.float32,
     )
     Indices: NDArray[np.uint32] = np.array([0, 1, 2], dtype=np.uint32)
@@ -45,12 +46,13 @@ def add_square(
     B_v: float,
     A_v: float,
 ) -> dict[str, int | NDArray[np.float32] | NDArray[np.uint32]]:
-    # fmt: off
+    X, Y, Z = 0.0, 0.0, 0.0
+    #  fmt: off
     Vertices: NDArray[np.float32] = np.array([
-        X_Coordinate - (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate, R_v, G_v, B_v, A_v,
-        X_Coordinate + (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate, R_v, G_v, B_v, A_v,
-        X_Coordinate + (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate, R_v, G_v, B_v, A_v,
-        X_Coordinate - (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate, R_v, G_v, B_v, A_v,
+        X - (Side_Length / 2), Y + (Side_Length / 2), Z, R_v, G_v, B_v, A_v,
+        X + (Side_Length / 2), Y + (Side_Length / 2), Z, R_v, G_v, B_v, A_v,
+        X + (Side_Length / 2), Y - (Side_Length / 2), Z, R_v, G_v, B_v, A_v,
+        X - (Side_Length / 2), Y - (Side_Length / 2), Z, R_v, G_v, B_v, A_v,
         ], dtype=np.float32
     )
     Indices: NDArray[np.uint32] = np.array([0, 1, 2, 3], dtype=np.uint32)
@@ -83,16 +85,18 @@ def add_cube(
     #  | v7----|-v6
     #  |/      |/
     #  v3------v2
+    X, Y, Z = 0.0, 0.0, 0.0
+
     # fmt: off
     Vertices: NDArray[np.float32] = np.array([
-        X_Coordinate - (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v0
-        X_Coordinate + (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v1
-        X_Coordinate + (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v2
-        X_Coordinate - (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v3
-        X_Coordinate - (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v4
-        X_Coordinate + (Side_Length / 2), Y_Coordinate + (Side_Length / 2), Z_Coordinate - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v5
-        X_Coordinate + (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v6
-        X_Coordinate - (Side_Length / 2), Y_Coordinate - (Side_Length / 2), Z_Coordinate - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v7
+        X - (Side_Length / 2), Y + (Side_Length / 2), Z + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v0
+        X + (Side_Length / 2), Y + (Side_Length / 2), Z + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v1
+        X + (Side_Length / 2), Y - (Side_Length / 2), Z + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v2
+        X - (Side_Length / 2), Y - (Side_Length / 2), Z + (Side_Length / 2), R_v, G_v, B_v, A_v,   # v3
+        X - (Side_Length / 2), Y + (Side_Length / 2), Z - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v4
+        X + (Side_Length / 2), Y + (Side_Length / 2), Z - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v5
+        X + (Side_Length / 2), Y - (Side_Length / 2), Z - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v6
+        X - (Side_Length / 2), Y - (Side_Length / 2), Z - (Side_Length / 2), R_v, G_v, B_v, A_v,   # v7
     ], dtype=np.float32)
     Indices: NDArray[np.uint32] = np.array([
         0, 1, 2, 3, # v0-v1-v2-v3
@@ -122,14 +126,14 @@ def add_sphere(
     G_v: float,
     B_v: float,
     A_v: float,
-    Rings: int = 500,
-    Sectors: int = 500,
+    Rings: int = 200,
+    Sectors: int = 200,
 ) -> dict[str, int | NDArray[np.float32] | NDArray[np.uint32]]:
     Vertices, Indices = generate_sphere(
         Side_Length,
-        X_Coordinate,
-        Y_Coordinate,
-        Z_Coordinate,
+        0.0,
+        0.0,
+        0.0,
         Rings,
         Sectors,
         R_v,
