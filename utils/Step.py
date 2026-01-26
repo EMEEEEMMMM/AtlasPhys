@@ -1,17 +1,21 @@
+import os
 import numpy as np
 from numpy.typing import NDArray
-import os
+from typing import Callable
 from numba import njit  # type: ignore
 
+from utils import SimplexSolver
 from utils.G_Object import P_Object
 from utils.GJK import check_collison
 from utils.EPA import epa
 from utils.MathPhys_utils import linear_scalar_impulse, GRAVITY
 
 MAX_WORKERS: int = os.cpu_count()  # type: ignore
+PENETRATION_SLOP: float = 0.01
+CORRECTION_PERCENTAGE: float = 0.2
 
 
-@njit(nogil=True, fastmath=True, cache=True, parallel=False)    # type: ignore
+@njit(nogil=True, fastmath=True, cache=True, parallel=False)  # type: ignore
 def integrator(
     Positions: NDArray[np.float32], Velocities: NDArray[np.float32], DeltaTime: float
 ) -> None:
@@ -58,7 +62,12 @@ def extract_data(
 
     return Positions, Velocities, DynamicObjects
 
-def update_data(NewPositions: NDArray[np.float32], NewVelocities: NDArray[np.float32], DynamicObjects: list[P_Object]) -> None:
+
+def update_data(
+    NewPositions: NDArray[np.float32],
+    NewVelocities: NDArray[np.float32],
+    DynamicObjects: list[P_Object],
+) -> None:
     """
     To update the data from the integrator to the objects
 
@@ -72,6 +81,57 @@ def update_data(NewPositions: NDArray[np.float32], NewVelocities: NDArray[np.flo
         obj.Velocity = NewVelocities[i]
 
 
+def solve_ground_collision_cube(Obj: P_Object, GroundHeight: float = -1.0) -> None:
+    """
+    Take care of the special case for the "Ground(Plane)" with cubes
+
+    Args:
+        Object (P_Object): cube
+        GroundHeight (float, optional): Defaults to -1.0.
+    """
+    if Obj.ReciprocalMass == 0.0:
+        return
+
+    HalfH: float = Obj.Side_Length * 0.5
+    Bottom: float = Obj.Position[1] - HalfH
+
+    if Bottom < GroundHeight:
+        Obj.Position[1] = GroundHeight + HalfH
+        Vy: float = Obj.Velocity[1]
+
+        if Vy < 0.0:
+            if abs(Vy) < 0.2:
+                Obj.Velocity[1] = 0.0
+
+            else:
+                Obj.Velocity[1] = -Obj.Restitution * Vy
+
+
+def solve_ground_collision_sphere(Obj: P_Object, GroundHeight: float = -1.0) -> None:
+    """
+    Take care of the special case for the "Ground(Plane)" with sphere
+
+    Args:
+        Object (P_Object): sphere
+        GroundHeight (float, optional): Defaults to -1.0.
+    """
+    if Obj.ReciprocalMass == 0.0:
+        return
+
+    Radius: float = Obj.Side_Length
+    Bottom: float = Obj.Position[1] - Radius
+
+    if Bottom < GroundHeight:
+        Obj.Position[1] = GroundHeight + Radius
+        Vy: float = Obj.Velocity[1]
+
+        if Vy < 0.0:
+            if abs(Vy) < 0.2:
+                Obj.Velocity[1] = 0.0
+            else:
+                Obj.Velocity[1] = -Obj.Restitution * Vy
+
+
 def the_collision(ObjectA: P_Object, ObjectB: P_Object) -> None:
     """
     Determine whether the collision had happened
@@ -81,6 +141,9 @@ def the_collision(ObjectA: P_Object, ObjectB: P_Object) -> None:
         ObjectA (P_Object)
         ObjectB (P_Object)
     """
+    InvMass_A: float = ObjectA.ReciprocalMass
+    InvMass_B: float = ObjectB.ReciprocalMass
+
     if not ObjectA.Collidable or not ObjectB.Collidable:
         return
 
@@ -91,43 +154,73 @@ def the_collision(ObjectA: P_Object, ObjectB: P_Object) -> None:
     if not IsColliding:
         return
 
-    Normal: NDArray[np.float32]
-    Depth: float
-    Normal, Depth = epa(Simplex, ObjectA, ObjectB)
+    Support_fn: Callable[[NDArray[np.float32]], NDArray[np.float32]] = (
+        SimplexSolver.make_support_fn(ObjectA, ObjectB)
+    )
 
-    InvMassA: float = ObjectA.ReciprocalMass
-    InvMassB: float = ObjectB.ReciprocalMass
-    Percentage: float = 0.8
-    Slope: float = 0.001
-    TotalMass_Reciprocal: float = ObjectA.ReciprocalMass + ObjectB.ReciprocalMass
-    CorrectionDepth: float = max(Depth - Slope, 0.0)
+    Normal: NDArray[np.float32] | None = None
+    Depth: float = 0.0
 
-    if TotalMass_Reciprocal > 0.0:
-        CorrectionA = (
-            CorrectionDepth * InvMassA / TotalMass_Reciprocal * Percentage * Normal
+    if len(Simplex) == 4:
+        Normal, Depth = epa(Simplex, ObjectA, ObjectB)
+
+    elif len(Simplex) == 3:
+        Tetra: list[NDArray[np.float32]] | None = SimplexSolver.expand_triangle_to_tetra(Simplex, Support_fn)  # type: ignore
+        if Tetra:
+            Normal, Depth = epa(Tetra, ObjectA, ObjectB)
+
+        else:
+            Normal, Depth = SimplexSolver.triangle_contact(Simplex)
+
+    elif len(Simplex) == 2:
+        Tetra: list[NDArray[np.float32]] = SimplexSolver.expand_segment_to_tetra(
+            Simplex, Support_fn
         )
-        CorrectionB = (
-            CorrectionDepth * InvMassB / TotalMass_Reciprocal * Percentage * Normal
-        )
-        ObjectA.Position -= CorrectionA
-        ObjectB.Position += CorrectionB
+        Normal, Depth = epa(Tetra, ObjectA, ObjectB)
 
-    RelativeVelocity: NDArray[np.float32] = ObjectA.Velocity - ObjectB.Velocity
-    VrelNormal: float = np.dot(
-        RelativeVelocity, Normal
-    )  # relative velocity along the normal
-
-    if VrelNormal < 0:
+    if Normal is None or Depth <= 0.0:
         return
 
-    e: float = min(ObjectA.Restitution, ObjectB.Restitution)
+    CenterA: NDArray[np.float32] = ObjectA.Position
+    CenterB: NDArray[np.float32] = ObjectB.Position
+    if np.dot(CenterB - CenterA, Normal) < 0:
+        Normal = -Normal
 
-    if VrelNormal < 0.5:
-        e *= 0.5
+    Vrel: NDArray[np.float32] = ObjectB.Velocity - ObjectA.Velocity
+    VrelNormal: float = np.dot(Vrel, Normal)
 
-    Scalar_Impulse: float = linear_scalar_impulse(e, VrelNormal, InvMassA, InvMassB)
+    if VrelNormal < 0.0:
+        Restitution: float = min(ObjectA.Restitution, ObjectB.Restitution)
 
-    Impulse: NDArray[np.float32] = Scalar_Impulse * Normal
+        j: float = linear_scalar_impulse(
+            Restitution,
+            VrelNormal,
+            InvMass_A,
+            InvMass_B,
+        )
 
-    ObjectA.Velocity += InvMassA * Impulse
-    ObjectB.Velocity -= InvMassB * Impulse
+        Impulse: NDArray[np.float32] = j * Normal
+
+        if InvMass_A > 0.0:
+            ObjectA.Velocity -= Impulse * InvMass_A
+
+        if InvMass_B > 0.0:
+            ObjectB.Velocity += Impulse * InvMass_B
+
+    if abs(VrelNormal) < 0.05:
+        c: float = Depth
+    else:
+        c = max(Depth - PENETRATION_SLOP, 0.0) * CORRECTION_PERCENTAGE
+
+    Correction: NDArray[np.float32] = c * Normal
+
+    if InvMass_A == 0.0:
+        ObjectB.Position += Correction
+
+    elif InvMass_B == 0.0:
+        ObjectA.Position -= Correction
+
+    else:
+        TotalInvMass: float = InvMass_A + InvMass_B
+        ObjectA.Position -= Correction * (InvMass_A / TotalInvMass)
+        ObjectB.Position += Correction * (InvMass_B / TotalInvMass)

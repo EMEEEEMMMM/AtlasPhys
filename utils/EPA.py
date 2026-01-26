@@ -13,7 +13,7 @@ MAX_ITERATIONS: int = 32
 
 def epa(
     Simplex: list[NDArray[np.float32]], ObjectA: P_Object, ObjectB: P_Object
-) -> tuple[NDArray[np.float32], float]:
+) -> tuple[NDArray[np.float32] | None, float]:
     """
     The main part of epa algorithm
 
@@ -25,26 +25,35 @@ def epa(
     Returns:
         _type_: _description_
     """
-
+    if len(Simplex) < 4:
+        return None, 0.0
+    
     # The vertex indexing of the polytope
     Faces: list[list[int]] = [
         [0, 1, 2],
         [0, 3, 1],
-        [2, 1, 3],
-        [2, 3, 0],
+        [0, 2, 3],
+        [1, 3, 2],
     ]
 
-    Polytope: list[NDArray[np.float32]] = Simplex
+    Polytope: list[NDArray[np.float32]] = Simplex.copy()
 
-    # The initial normal and distance of the face
+    # The initial normals and distances of the face
     Normals: list[NDArray[np.float32]]
-    Min_Dist: float
-    Min_Face_Idx: int
-    Normals, Min_Dist, Min_Face_Idx = _get_face_normals(Polytope, Faces)
+    Distances: list[float]
+    Normals, Distances = _initialize_polytope(Polytope, Faces)
+
+    Min_Face_Idx: int = int(np.argmin(Distances))
+    MinDist: float = Distances[Min_Face_Idx]
+
+    Iteration: int = 0
 
     for _ in range(MAX_ITERATIONS):
+        Iteration += 1
+
         MinNormal: NDArray[np.float32] = Normals[Min_Face_Idx]
-        MinDistance: float = Min_Dist
+        MinDistance: float = MinDist
+
         SupportPoint: NDArray[np.float32] = get_simplex_points(
             ObjectA, ObjectB, MinNormal
         )
@@ -52,75 +61,114 @@ def epa(
 
         # If abs(SupportDistance - MinDistance) < TOLERANCE,
         # we consider that the MinNormal and SupportDistance is the right answer that we want
-        if abs(SupportDistance - MinDistance) < TOLERANCE:
-            return MinNormal, SupportDistance
+        if SupportDistance - MinDistance <= TOLERANCE:
+            return MinNormal, MinDistance
+        
+        if Iteration > MAX_ITERATIONS - 2:
+            return MinNormal, MinDistance
 
         unique_edges: list[tuple[int, int]] = []
 
-        for i in range(len(Faces) - 1, -1, -1):
-            if np.dot(Normals[i], SupportPoint - Polytope[Faces[i][0]]) > 0:
-                Face: list[int] = Faces.pop(i)
+        i: int = len(Faces) - 1
+        while i >= 0:
+            FacePoint: NDArray[np.float32] = Polytope[Faces[i][0]]
+            if np.dot(Normals[i], SupportPoint - FacePoint) > 0:
+                RemovedFace: list[int] = Faces.pop(i)
                 Normals.pop(i)
+                Distances.pop(i)
 
-                _add_if_unique_edge(unique_edges, Face[0], Face[1])
-                _add_if_unique_edge(unique_edges, Face[1], Face[2])
-                _add_if_unique_edge(unique_edges, Face[2], Face[0])
+                _add_if_unique_edge(unique_edges, RemovedFace[0], RemovedFace[1])
+                _add_if_unique_edge(unique_edges, RemovedFace[1], RemovedFace[2])
+                _add_if_unique_edge(unique_edges, RemovedFace[2], RemovedFace[0])
 
-        Idx: int = len(Polytope)
+            i -= 1
+
+        NewVertexIdx: int = len(Polytope)
         Polytope.append(SupportPoint)
 
+        NewNormals: list[NDArray[np.float32]] = []
+        NewDistances: list[float] = []
+
         for edge in unique_edges:
-            Faces.append([edge[0], edge[1], Idx])
+            NewFaces: list[int] = [edge[0], edge[1], NewVertexIdx]
+            Faces.append(NewFaces)
 
-        Normals, MinDistance, Min_Face_Idx = _get_face_normals(Polytope, Faces)
+            Normal, Distance = _get_face_normal(
+                Polytope[NewFaces[0]], Polytope[NewFaces[1]], Polytope[NewFaces[2]]
+            )
 
-        if Min_Face_Idx == -1:
-            break
+            NewNormals.append(Normal)
+            NewDistances.append(Distance)
 
-    return Normals[Min_Face_Idx], Min_Dist
+        Normals.extend(NewNormals)
+        Distances.extend(NewDistances)
+
+        Min_Face_Idx = int(np.argmin(Distances))
+        MinDist = Distances[Min_Face_Idx]
+
+    return Normals[Min_Face_Idx], MinDist
 
 
-def _get_face_normals(
+def _initialize_polytope(
     Polytope: list[NDArray[np.float32]], Faces: list[list[int]]
-) -> tuple[list[NDArray[np.float32]], float, int]:
+) -> tuple[list[NDArray[np.float32]], list[float]]:
     """
-    To find the face which is the closest to the origin
+    Initialize the polytope by calculating normals and distances for all faces.
 
     Args:
-        Polytope (list[NDArray[np.float32]]): the vertices of the current polytope
-        Faces (list[list[int]]): contains the vertex indexings
+        Polytope (list[NDArray[np.float32]])
+        Faces (list[list[int]])
 
     Returns:
-        tuple[list[NDArray[np.float32]], float, int]: Normals, Min_Dist, Min_Face_Idx
-        Normals: a list contains the normal of each face
-        Min_Dist: the distance of the face closest to the origin
-        Min_Face_Idx: the index of the face closest to the origin
+        tuple[list[NDArray[np.float32]], list[float]]
     """
     Normals: list[NDArray[np.float32]] = []
-    Min_Dist: float = float("inf")
-    Min_Face_Idx: int = -1
+    Distances: list[float] = []
 
-    for idx, face in enumerate(Faces):
+    for face in Faces:
         Point0: NDArray[np.float32] = Polytope[face[0]]
         Point1: NDArray[np.float32] = Polytope[face[1]]
         Point2: NDArray[np.float32] = Polytope[face[2]]
 
-        Normal: NDArray[np.float32] = normalize(
-            np.cross(Point1 - Point0, Point2 - Point0)
-        )
-        Dist: float = np.dot(Normal, Point0)
-
-        if Dist < 0:
-            Normal = -Normal
-            Dist = -Dist
-
+        Normal, Distance = _get_face_normal(Point0, Point1, Point2)
         Normals.append(Normal)
+        Distances.append(Distance)
 
-        if Dist < Min_Dist:
-            Min_Dist = Dist
-            Min_Face_Idx = idx
+    return Normals, Distances
 
-    return Normals, Min_Dist, Min_Face_Idx
+
+def _get_face_normal(
+    Point0: NDArray[np.float32],
+    Point1: NDArray[np.float32],
+    Point2: NDArray[np.float32],
+) -> tuple[NDArray[np.float32], float]:
+    """
+    Calculate the outward-pointing normal and distance to origin for a triangular face.
+
+    The normal should point away from the polytope interior (where origin is)
+    Distance is the perpendicular distance from origin to the face plane.
+
+    Args:
+        Point0 (NDArray[np.float32])
+        Point1 (NDArray[np.float32])
+        Point2 (NDArray[np.float32])
+
+    Returns:
+        tuple[Normal: NDArray[np.float32], Distance: np.float32]
+    """
+
+    Edge1: NDArray[np.float32] = Point1 - Point0
+    Edge2: NDArray[np.float32] = Point2 - Point0
+
+    Normal: NDArray[np.float32] = normalize(np.cross(Edge1, Edge2))
+
+    Distance: float = np.dot(Normal, Point0)
+
+    if Distance < 0:
+        Normal = -Normal
+        Distance = -Distance
+
+    return Normal, Distance
 
 
 def _add_if_unique_edge(Edges: list[tuple[int, int]], A: int, B: int) -> None:

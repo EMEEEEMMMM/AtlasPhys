@@ -70,6 +70,7 @@ class P_Object:
             Vertices.reshape(-1, 7)[:, :3]
         )
         self.set_gravity()
+        self._get_aabb()
 
     def _update_position(self,
         Velocity: NDArray[np.float32],
@@ -102,6 +103,17 @@ class P_Object:
 
     def set_gravity(self) -> None:
         self.Acceleration[1] = -9.8
+    
+    def _get_aabb(self) -> None:
+        MaxXYZ: NDArray[np.uint8] = np.argmax(self.XYZVertices, axis=0)
+        self.X_MAX: float = self.XYZVertices[MaxXYZ[0], 0]
+        self.Y_MAX: float = self.XYZVertices[MaxXYZ[1], 1]
+        self.Z_MAX: float = self.XYZVertices[MaxXYZ[2], 2]
+
+        MinXYZ: NDArray[np.uint8] = np.argmin(self.XYZVertices, axis=0)
+        self.X_MIN: float = self.XYZVertices[MinXYZ[0], 0]
+        self.Y_MIN: float = self.XYZVertices[MinXYZ[1], 1]
+        self.Z_MIN: float = self.XYZVertices[MinXYZ[2], 2]
 
 
 class Coordinate_Axis(P_Object):

@@ -153,13 +153,20 @@ class Simulator(QOpenGLWidget):
                 DynamicObjects: list[P_Object]
                 Positions, Velocities, DynamicObjects = Step.extract_data(self.Graphics)
 
-                Step.integrator(Positions, Velocities, DeltaTime)
+                Step.integrator(Positions, Velocities, self.PhysicsStep)
 
                 Step.update_data(Positions, Velocities, DynamicObjects)
 
-                for idx, obj in enumerate(self.Graphics):
-                    for i in range(idx + 1, len(self.Graphics)):
-                        Step.the_collision(obj, self.Graphics[i])
+                for obj in DynamicObjects:
+                    if obj.Shape == "Cube":
+                        Step.solve_ground_collision_cube(obj)
+
+                    elif obj.Shape == "Sphere":
+                        Step.solve_ground_collision_sphere(obj)
+                        
+                for idx, obj in enumerate(DynamicObjects):
+                    for i in range(idx + 1, len(DynamicObjects)):
+                        Step.the_collision(obj, DynamicObjects[i])
 
                 self.Accmulator -= self.PhysicsStep
 
@@ -363,15 +370,15 @@ class Simulator(QOpenGLWidget):
         # fmt: off
         Vertices: NDArray[np.float32] = np.array(
             [
-                -25.0, -1.0, 25.0, 0.5, 0.5, 0.5, 1.0,
-                25.0, -1.0, 25.0, 0.5, 0.5, 0.5, 1.0,
-                25.0, -1.0, -25.0, 0.5, 0.5, 0.5, 1.0,
-                -25.0, -1.0, -25.0, 0.5, 0.5, 0.5, 1.0,
+                -500, 0.0, 500, 0.5, 0.5, 0.5, 1.0,
+                500, 0.0, 500, 0.5, 0.5, 0.5, 1.0,
+                500, 0.0, -500, 0.5, 0.5, 0.5, 1.0,
+                -500, 0.0, -500, 0.5, 0.5, 0.5, 1.0,
 
-                -25.0, -2.0, 25.0, 0.5, 0.5, 0.5, 1.0,
-                25.0, -2.0, 25.0, 0.5, 0.5, 0.5, 1.0,
-                25.0, -2.0, -25.0, 0.5, 0.5, 0.5, 1.0,
-                -25.0, -2.0, -25.0, 0.5, 0.5, 0.5, 1.0,
+                -500, -2.0, 500, 0.5, 0.5, 0.5, 1.0,
+                500, -2.0, 500, 0.5, 0.5, 0.5, 1.0,
+                500, -2.0, -500, 0.5, 0.5, 0.5, 1.0,
+                -500, -2.0, -500, 0.5, 0.5, 0.5, 1.0,
             ],
             dtype=np.float32,
         )
@@ -391,9 +398,9 @@ class Simulator(QOpenGLWidget):
 
         ObjectCData: dict[str, Any] = {
             "Shape": "Plane",
-            "Side_Length": 50.0,
+            "Side_Length": 1000,
             "X_Coordinate": 0.0,
-            "Y_Coordinate": -1.5,
+            "Y_Coordinate": -1.0,
             "Z_Coordinate": 0.0,
             "R_v": 0.5,
             "G_v": 0.5,

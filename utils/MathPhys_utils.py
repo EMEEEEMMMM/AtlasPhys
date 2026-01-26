@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray
-from numba import njit   # type: ignore
+from numba import njit  # type: ignore
 
 GRAVITY: NDArray[np.float32] = np.array([0.0, -9.8, 0.0], dtype=np.float32)
 

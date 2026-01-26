@@ -226,13 +226,11 @@ class AddObjectDialog(QDialog):
         MainLayout: QHBoxLayout = QHBoxLayout(Mainwidget)
 
         self.SelectType = QComboBox()
-        # fmt: off
-        self.SelectType.addItems(["Equilateral triangle", "Square", "Cube", "Sphere"])
-        # fmt: on
+        self.SelectType.addItems(["Cube", "Sphere"])
 
         self.Side_Length = QDoubleSpinBox()
-        self.Side_Length.setRange(0, 100)
-        self.Side_Length.setValue(5)
+        self.Side_Length.setRange(0, 10)
+        self.Side_Length.setValue(2)
         self.Side_Length.setDecimals(2)
 
         self.X_Coordinate = QDoubleSpinBox()
@@ -242,7 +240,7 @@ class AddObjectDialog(QDialog):
 
         self.Y_Coordinate = QDoubleSpinBox()
         self.Y_Coordinate.setRange(-100, 100)
-        self.Y_Coordinate.setValue(0)
+        self.Y_Coordinate.setValue(10)
         self.Y_Coordinate.setDecimals(2)
 
         self.Z_Coordinate = QDoubleSpinBox()
