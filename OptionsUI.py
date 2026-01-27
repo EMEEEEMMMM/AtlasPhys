@@ -7,7 +7,6 @@ from utils import G_Object
 
 
 class MainWindow(QMainWindow):
-    
 
     def __init__(self) -> None:
         super().__init__()
@@ -34,7 +33,7 @@ class MainWindow(QMainWindow):
         StartOrStop = QPushButton("Start/Stop the simulator")
         LoadDemo = QPushButton("Load/Unload the demo")
         self.AddCube = QPushButton("Shortcut to add a cube")
-
+        self.AddSphere = QPushButton("Shortcut to add a sphere")
 
         Slider_Label = QLabel("Properties")
         Slider1_Label = QLabel("Slider 1")
@@ -71,6 +70,7 @@ class MainWindow(QMainWindow):
         LeftSidebarLayout.addWidget(StartOrStop)
         LeftSidebarLayout.addWidget(LoadDemo)
         LeftSidebarLayout.addWidget(self.AddCube)
+        LeftSidebarLayout.addWidget(self.AddSphere)
 
         LeftSidebarLayout.addWidget(Slider_Label)
         LeftSidebarLayout.addWidget(Slider1_Label)
@@ -120,7 +120,8 @@ class MainWindow(QMainWindow):
         DeleteObjectBtn.clicked.connect(lambda: self.PushButtonEvent.delete_object())
 
         self.AddCube.clicked.connect(lambda: self.OpenGLWindow.add_demo_cube())
-        
+        self.AddSphere.clicked.connect(lambda: self.OpenGLWindow.add_demo_sphere())
+
         self.ObjectListView.setSelectionMode(QListView.SelectionMode.SingleSelection)
         self.ObjectListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
 

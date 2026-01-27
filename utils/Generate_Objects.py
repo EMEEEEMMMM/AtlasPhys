@@ -126,8 +126,8 @@ def add_sphere(
     G_v: float,
     B_v: float,
     A_v: float,
-    Rings: int = 200,
-    Sectors: int = 200,
+    Rings: int = 100,
+    Sectors: int = 100,
 ) -> dict[str, int | NDArray[np.float32] | NDArray[np.uint32]]:
     Vertices, Indices = generate_sphere(
         Side_Length,

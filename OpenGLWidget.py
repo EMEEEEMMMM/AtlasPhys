@@ -528,6 +528,7 @@ class Simulator(QOpenGLWidget):
         for _ in range(10):
             if self.DemoLoaded and self.START_OR_STOP:
                 self.window_self.AddCube.clicked.emit()
+                self.window_self.AddSphere.clicked.emit()
                 time.sleep(1.0)
 
     def add_demo_cube(self) -> None:
@@ -544,9 +545,9 @@ class Simulator(QOpenGLWidget):
 
         IData: dict[str, Any] = {
             "Side_Length": 2.0,
-            "X_Coordinate": random.randint(-10, 10),
-            "Y_Coordinate": 10.0,
-            "Z_Coordinate": random.randint(-10, 10),
+            "X_Coordinate": random.randint(-30, 30),
+            "Y_Coordinate": random.randint(10, 15),
+            "Z_Coordinate": random.randint(-30, 30),
             "R_v": R_v,
             "G_v": G_v,
             "B_v": B_v,
@@ -561,6 +562,53 @@ class Simulator(QOpenGLWidget):
 
         CData: dict[str, Any] = (
             {"Shape": "Cube"}
+            | IData
+            | {"Mass": 3.0, "Restitution": 0.3}
+            | VIDATA
+            | {"Vao": Vao, "Vbo": Vbo, "Ebo": Ebo}
+        )
+
+        OneOfTheCube: P_Object = P_Object(**CData)
+        self.Graphics.append(OneOfTheCube)
+
+        index: int = len(self.Graphics)
+
+        self.window_self.ObjectList.beginInsertRows(QModelIndex(), index, index)
+        self.window_self.ObjectList.endInsertRows()
+
+        self.update()
+
+    def add_demo_sphere(self) -> None:
+        self.makeCurrent()
+
+        R_v: float = random.randint(0, 255) / 255.0
+        G_v: float = random.randint(0, 255) / 255.0
+        B_v: float = random.randint(0, 255) / 255.0
+
+        if R_v == 0.0 and G_v == 0.0 and B_v == 0.0:
+            R_v: float = random.randint(0, 255) / 255.0
+            G_v: float = random.randint(0, 255) / 255.0
+            B_v: float = random.randint(0, 255) / 255.0
+
+        IData: dict[str, Any] = {
+            "Side_Length": 2.0,
+            "X_Coordinate": random.randint(-30, 30),
+            "Y_Coordinate": random.randint(10, 15),
+            "Z_Coordinate": random.randint(-30, 30),
+            "R_v": R_v,
+            "G_v": G_v,
+            "B_v": B_v,
+            "A_v": 1.0,
+        }
+
+        VIDATA = Generate_Objects.add_sphere(**IData)
+
+        Vao, Vbo, Ebo = Opengl_utils.analysis_data(
+            self, VIDATA["Vertices"], VIDATA["Indices"]
+        )
+
+        CData: dict[str, Any] = (
+            {"Shape": "Sphere"}
             | IData
             | {"Mass": 3.0, "Restitution": 0.3}
             | VIDATA

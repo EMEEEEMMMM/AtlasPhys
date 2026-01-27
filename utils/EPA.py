@@ -27,7 +27,7 @@ def epa(
     """
     if len(Simplex) < 4:
         return None, 0.0
-    
+
     # The vertex indexing of the polytope
     Faces: list[list[int]] = [
         [0, 1, 2],
@@ -48,7 +48,8 @@ def epa(
 
     Iteration: int = 0
 
-    for _ in range(MAX_ITERATIONS):
+    while Iteration < MAX_ITERATIONS:
+
         Iteration += 1
 
         MinNormal: NDArray[np.float32] = Normals[Min_Face_Idx]
@@ -63,7 +64,7 @@ def epa(
         # we consider that the MinNormal and SupportDistance is the right answer that we want
         if SupportDistance - MinDistance <= TOLERANCE:
             return MinNormal, MinDistance
-        
+
         if Iteration > MAX_ITERATIONS - 2:
             return MinNormal, MinDistance
 
