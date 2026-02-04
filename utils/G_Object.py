@@ -58,6 +58,9 @@ class P_Object:
         )
         self.Scale: NDArray[np.float32] = np.array([1.0, 1.0, 1.0], dtype=np.float32)
         self.Rotation: NDArray[np.float32] = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+        self.RotationMatrix: NDArray[np.float32] = MathPhys_utils.euler_to_matrix(
+            self.Rotation
+        )
         self.AngularVelocity: NDArray[np.float32] = np.array(
             [0.0, 0.0, 0.0], dtype=np.float32
         )
@@ -69,10 +72,39 @@ class P_Object:
         self.XYZVertices: NDArray[np.float32] = np.ascontiguousarray(
             Vertices.reshape(-1, 7)[:, :3]
         )
-        self.set_gravity()
+
+        if Shape == "Sphere":
+            self.InertiaBody: NDArray[np.float32] = np.float32(
+                (2 / 5) * self.MASS * (Side_Length**2)
+            ) * np.eye(3, dtype=np.float32)
+
+            self.InvInertiaBody: NDArray[np.float32] = np.linalg.inv(self.InertiaBody)
+            self.InvInertiaWorld: NDArray[np.float32] = (
+                self.RotationMatrix
+                @ self.InvInertiaBody
+                @ np.transpose(self.RotationMatrix)
+            ).astype(np.float32)
+
+        if Shape == "Cube":
+            self.InertiaBody = np.float32(
+                (1 / 12) * self.MASS * (Side_Length**2)
+            ) * np.diag(np.array([2.0, 2.0, 2.0], dtype=np.float32))
+
+            self.InvInertiaBody: NDArray[np.float32] = np.linalg.inv(self.InertiaBody)
+            self.InvInertiaWorld: NDArray[np.float32] = (
+                self.RotationMatrix
+                @ self.InvInertiaBody
+                @ np.transpose(self.RotationMatrix)
+            ).astype(np.float32)
+            self.HalfExtent: NDArray[np.float32] = np.array(
+                [self.Side_Length / 2, self.Side_Length / 2, self.Side_Length / 2],
+                dtype=np.float32,
+            )
+
         self._get_aabb()
 
-    def _update_position(self,
+    def _update_position(
+        self,
         Velocity: NDArray[np.float32],
         Position: NDArray[np.float32],
         Acceleration: NDArray[np.float32],
@@ -101,9 +133,6 @@ class P_Object:
 
         return FinalMatrix
 
-    def set_gravity(self) -> None:
-        self.Acceleration[1] = -9.8
-    
     def _get_aabb(self) -> None:
         MaxXYZ: NDArray[np.uint8] = np.argmax(self.XYZVertices, axis=0)
         self.X_MAX: float = self.XYZVertices[MaxXYZ[0], 0]
@@ -114,6 +143,9 @@ class P_Object:
         self.X_MIN: float = self.XYZVertices[MinXYZ[0], 0]
         self.Y_MIN: float = self.XYZVertices[MinXYZ[1], 1]
         self.Z_MIN: float = self.XYZVertices[MinXYZ[2], 2]
+
+    def get_rotation_matrix(self) -> NDArray[np.float32]:
+        return MathPhys_utils.rotation_matrix(*self.Rotation)
 
 
 class Coordinate_Axis(P_Object):
@@ -137,6 +169,10 @@ class Plane(P_Object):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.MASS = float("inf")
+        self.ReciprocalMass = 0.0
+        self.InvInertiaBody = np.zeros((3, 3), dtype=np.float32)
+        self.InvInertiaWorld = np.zeros((3, 3), dtype=np.float32)
+        self.Collidable = True
 
     def update_position(self, DeltaTime: float) -> None:
         pass

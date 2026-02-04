@@ -140,6 +140,7 @@ class ListObjectModel(QAbstractListModel):
         super().__init__(parent)
         self.OpenGLWindow = OpenGLWindow
         self.ObjectList = self.OpenGLWindow.Graphics
+        self.DynamicObjects= self.OpenGLWindow.DynamicObjects
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.ObjectList) if not parent.isValid() else 0
@@ -180,5 +181,6 @@ class ListObjectModel(QAbstractListModel):
 
     def clear_all(self) -> None:
         self.beginRemoveRows(QModelIndex(), 0, len(self.ObjectList) - 1)
+        self.DynamicObjects.clear()
         self.ObjectList.clear()
         self.endRemoveRows()

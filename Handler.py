@@ -92,45 +92,45 @@ class PushButtonEvent:
             }
             match Shape:  # type: ignore
 
-                case "Equilateral triangle":
-                    ObjectData: dict[
-                        str, int | NDArray[np.float32] | NDArray[np.uint32]
-                    ] = Generate_Objects.add_triangle(**IData)
-                    vao, vbo, ebo = Opengl_utils.analysis_data(
-                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"]  # type: ignore
-                    )
-                    CData: dict[str, object] = (
-                        data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
-                    )
-                    Sustance: P_Object = P_Object(**CData)  # type: ignore
-                    self.window.OpenGLWindow.Graphics.append(Sustance)
+                # case "Equilateral triangle":
+                #     ObjectData: dict[
+                #         str, int | NDArray[np.float32] | NDArray[np.uint32]
+                #     ] = Generate_Objects.add_triangle(**IData)
+                #     vao, vbo, ebo = Opengl_utils.analysis_data(
+                #         self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"]  # type: ignore
+                #     )
+                #     CData: dict[str, object] = (
+                #         data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                #     )
+                #     Sustance: P_Object = P_Object(**CData)  # type: ignore
+                #     self.window.OpenGLWindow.Graphics.append(Sustance)
 
-                    index: int = len(self.window.OpenGLWindow.Graphics)
+                #     index: int = len(self.window.OpenGLWindow.Graphics)
 
-                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(
-                        QModelIndex(), index, index
-                    )
-                    self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
+                #     self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(
+                #         QModelIndex(), index, index
+                #     )
+                #     self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
-                case "Square":
-                    ObjectData: dict[
-                        str, int | NDArray[np.float32] | NDArray[np.uint32]
-                    ] = Generate_Objects.add_square(**IData)
-                    vao, vbo, ebo = Opengl_utils.analysis_data(
-                        self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"]  # type: ignore
-                    )
-                    CData: dict[str, object] = (
-                        data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
-                    )
-                    Sustance: P_Object = P_Object(**CData)  # type: ignore
-                    self.window.OpenGLWindow.Graphics.append(Sustance)
+                # case "Square":
+                #     ObjectData: dict[
+                #         str, int | NDArray[np.float32] | NDArray[np.uint32]
+                #     ] = Generate_Objects.add_square(**IData)
+                #     vao, vbo, ebo = Opengl_utils.analysis_data(
+                #         self.window.OpenGLWindow, ObjectData["Vertices"], ObjectData["Indices"]  # type: ignore
+                #     )
+                #     CData: dict[str, object] = (
+                #         data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
+                #     )
+                #     Sustance: P_Object = P_Object(**CData)  # type: ignore
+                #     self.window.OpenGLWindow.Graphics.append(Sustance)
 
-                    index: int = len(self.window.OpenGLWindow.Graphics)
+                #     index: int = len(self.window.OpenGLWindow.Graphics)
 
-                    self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(
-                        QModelIndex(), index, index
-                    )
-                    self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
+                #     self.window.OpenGLWindow.window_self.ObjectList.beginInsertRows(
+                #         QModelIndex(), index, index
+                #     )
+                #     self.window.OpenGLWindow.window_self.ObjectList.endInsertRows()
 
                 case "Cube":
                     ObjectData: dict[
@@ -145,6 +145,7 @@ class PushButtonEvent:
                     print(CData)
                     Sustance: P_Object = P_Object(**CData)  # type: ignore
                     self.window.OpenGLWindow.Graphics.append(Sustance)
+                    self.window.OpenGLWindow.DynamicObjects.append(Sustance)
 
                     index: int = len(self.window.OpenGLWindow.Graphics)
 
@@ -165,6 +166,7 @@ class PushButtonEvent:
                     )
                     Sustance: P_Object = P_Object(**CData)  # type: ignore
                     self.window.OpenGLWindow.Graphics.append(Sustance)
+                    self.window.OpenGLWindow.DynamicObjects.append(Sustance)
 
                     index: int = len(self.window.OpenGLWindow.Graphics)
 

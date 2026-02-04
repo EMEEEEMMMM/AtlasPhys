@@ -193,19 +193,35 @@ def rotation_matrix(
     return Rot_Matrix
 
 
-def linear_scalar_impulse(
-    Restitution: float, VrelNormal: float, R_MassA: float, R_MassB: float
-) -> float:
-    """
-    Calculate the scalar of the impulse
+def euler_to_matrix(e: NDArray[np.float32]) -> NDArray[np.float32]:
+    cx, cy, cz = np.cos(e)
+    sx, sy, sz = np.sin(e)
 
-    Args:
-        Restitution (float): the restitution of the object
-        VrelNormal (float): the relative velocity along the normal
-        R_MassA (float): the reciprocal of the mass of objectA
-        R_MassB (float): the reciprocal of the mass of objectB
+    Rx: NDArray[np.float32] = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0, cx, -sx],
+            [0, sx, cx],
+        ],
+        dtype=np.float32,
+    )
 
-    Returns:
-        float: the scalar of the impulse
-    """
-    return (-(1 + Restitution) * VrelNormal) / (R_MassA + R_MassB)
+    Ry: NDArray[np.float32] = np.array(
+        [
+            [cy, 0.0, sy],
+            [0.0, 1.0, 0.0],
+            [-sy, 0, cy],
+        ],
+        dtype=np.float32,
+    )
+
+    Rz: NDArray[np.float32] = np.array(
+        [
+            [cz, -sz, 0.0],
+            [sz, cz, 0.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
+
+    return Rz @ Ry @ Rx  # type: ignore

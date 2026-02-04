@@ -12,6 +12,7 @@ import threading
 from utils import MathPhys_utils, Opengl_utils, Generate_Objects
 from utils.G_Object import P_Object, Coordinate_Axis, Plane
 from utils import Step
+from utils import Contact
 
 
 class Simulator(QOpenGLWidget):
@@ -42,6 +43,7 @@ class Simulator(QOpenGLWidget):
         self.RightDown: bool = False
         self.LastPos: QPointF = QPointF()
         self.Graphics: list[P_Object] = []
+        self.DynamicObjects: list[P_Object] = []
 
         self.TIMER = QElapsedTimer()
         self.Time_Started: bool = False
@@ -148,25 +150,25 @@ class Simulator(QOpenGLWidget):
             self.Accmulator += DeltaTime
 
             while self.Accmulator >= self.PhysicsStep:
-                Positions: NDArray[np.float32]
-                Velocities: NDArray[np.float32]
-                DynamicObjects: list[P_Object]
-                Positions, Velocities, DynamicObjects = Step.extract_data(self.Graphics)
+                Step.integrator(self.DynamicObjects, DeltaTime)
 
-                Step.integrator(Positions, Velocities, self.PhysicsStep)
+                all_contacts: list[Contact.Contact] = []
+                for idx, obj in enumerate(self.DynamicObjects):
+                    for i in range(idx + 1, len(self.DynamicObjects)):
+                        all_contacts.extend(
+                            Contact.generate_contacts(obj, self.DynamicObjects[i])  # type: ignore
+                        )
 
-                Step.update_data(Positions, Velocities, DynamicObjects)
+                for obj in self.DynamicObjects:
+                    if obj.Position[1] - obj.Side_Length > self.PlaneObj.Position[1]:
+                        continue
 
-                for obj in DynamicObjects:
-                    if obj.Shape == "Cube":
-                        Step.solve_ground_collision_cube(obj)
+                    all_contacts.extend(
+                        Contact.generate_contacts(self.PlaneObj, obj)  # type: ignore
+                    )
 
-                    elif obj.Shape == "Sphere":
-                        Step.solve_ground_collision_sphere(obj)
-                        
-                for idx, obj in enumerate(DynamicObjects):
-                    for i in range(idx + 1, len(DynamicObjects)):
-                        Step.the_collision(obj, DynamicObjects[i])
+                Contact.solve_contacts(all_contacts, Iterations=4)
+                Contact.positional_correction(all_contacts)
 
                 self.Accmulator -= self.PhysicsStep
 
@@ -569,7 +571,9 @@ class Simulator(QOpenGLWidget):
         )
 
         OneOfTheCube: P_Object = P_Object(**CData)
+        print(OneOfTheCube.Velocity, OneOfTheCube.AngularVelocity)
         self.Graphics.append(OneOfTheCube)
+        self.DynamicObjects.append(OneOfTheCube)
 
         index: int = len(self.Graphics)
 
@@ -615,8 +619,10 @@ class Simulator(QOpenGLWidget):
             | {"Vao": Vao, "Vbo": Vbo, "Ebo": Ebo}
         )
 
-        OneOfTheCube: P_Object = P_Object(**CData)
-        self.Graphics.append(OneOfTheCube)
+        OneOfTheSphere: P_Object = P_Object(**CData)
+        print(OneOfTheSphere.Velocity, OneOfTheSphere.AngularVelocity)
+        self.Graphics.append(OneOfTheSphere)
+        self.DynamicObjects.append(OneOfTheSphere)
 
         index: int = len(self.Graphics)
 

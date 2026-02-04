@@ -88,8 +88,8 @@ def triangle_contact(Simplex: list[NDArray[np.float32]]):
     N: NDArray[np.float32] = np.cross(AB, AC)
     Norm: np.float32 = np.linalg.norm(N)
 
-    if Norm < 1e-6:
-        return None, 0.0
+    # if Norm < 1e-6:
+    #     return None, 0.0
 
     N /= Norm  # type: ignore
 

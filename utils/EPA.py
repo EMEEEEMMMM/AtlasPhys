@@ -13,7 +13,7 @@ MAX_ITERATIONS: int = 32
 
 def epa(
     Simplex: list[NDArray[np.float32]], ObjectA: P_Object, ObjectB: P_Object
-) -> tuple[NDArray[np.float32] | None, float]:
+) -> tuple[NDArray[np.float32], float]:
     """
     The main part of epa algorithm
 
@@ -25,8 +25,6 @@ def epa(
     Returns:
         _type_: _description_
     """
-    if len(Simplex) < 4:
-        return None, 0.0
 
     # The vertex indexing of the polytope
     Faces: list[list[int]] = [
