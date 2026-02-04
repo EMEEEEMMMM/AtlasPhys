@@ -150,7 +150,7 @@ class Simulator(QOpenGLWidget):
             self.Accmulator += DeltaTime
 
             while self.Accmulator >= self.PhysicsStep:
-                Step.integrator(self.DynamicObjects, DeltaTime)
+                Step.integrator(self.DynamicObjects, self.PhysicsStep)
 
                 all_contacts: list[Contact.Contact] = []
                 for idx, obj in enumerate(self.DynamicObjects):
