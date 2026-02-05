@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 from numba import njit  # type: ignore
@@ -151,24 +152,10 @@ def scalef(scale: NDArray[np.float32]) -> NDArray[np.float32]:
     return Matrix
 
 
-def load_shader(file_path: str):
-    """_summary_
-    Load shader from file_path
-
-    Args:
-        file_path (str): the file path
-
-    Returns:
-        the shader
-    """
-    if getattr(sys, "frozen", False):
-        BasePth = sys._MEIPASS  # type: ignore[attr-defined]
-    else:
-        BasePth = os.path.abspath(".")
-    dir = os.path.join(BasePth, file_path)  # type: ignore
-    with open(dir, "r") as f:
-        return f.read()
-
+def resource_path(Relative: str) -> Path:
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / Relative
+    return Path(__file__).resolve().parent.parent / Relative
 
 def analysis_data(
     window: Any,

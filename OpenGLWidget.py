@@ -313,7 +313,7 @@ class Simulator(QOpenGLWidget):
         # Vertex_shader
         vertex_shader = glCreateShader(GL_VERTEX_SHADER)
         glShaderSource(
-            vertex_shader, Opengl_utils.load_shader("ShaderProgram/vertex_shader.vert")
+            vertex_shader, Opengl_utils.resource_path("ShaderProgram/vertex_shader.vert").read_text()
         )
         glCompileShader(vertex_shader)
 
@@ -321,7 +321,7 @@ class Simulator(QOpenGLWidget):
         fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
         glShaderSource(
             fragment_shader,
-            Opengl_utils.load_shader("ShaderProgram/fragment_shader.frag"),
+            Opengl_utils.resource_path("ShaderProgram/fragment_shader.frag").read_text(),
         )
         glCompileShader(fragment_shader)
 
