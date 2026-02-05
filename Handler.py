@@ -4,9 +4,11 @@ from PyQt6.QtCore import QModelIndex
 import numpy as np
 from numpy.typing import NDArray
 from OpenGL.GL import *  # type: ignore
+
 from utils import Generate_Objects, Opengl_utils
-from utils.G_Object import P_Object
+from utils.G_Object import P_Object, Impulse_Arrow, MA_Arrow
 from utils.Decorator import time_counter
+from utils.MathPhys_utils import GRAVITY
 
 
 class ObjectDataType(TypedDict):
@@ -23,7 +25,7 @@ class ObjectDataType(TypedDict):
     Restitution: float
 
 
-class PushButtonEvent:
+class Events:
     window: Any
 
     def __init__(self, window: Any) -> None:
@@ -102,8 +104,8 @@ class PushButtonEvent:
                 #     CData: dict[str, object] = (
                 #         data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
                 #     )
-                #     Sustance: P_Object = P_Object(**CData)  # type: ignore
-                #     self.window.OpenGLWindow.Graphics.append(Sustance)
+                #     Substance: P_Object = P_Object(**CData)  # type: ignore
+                #     self.window.OpenGLWindow.Graphics.append(Substance)
 
                 #     index: int = len(self.window.OpenGLWindow.Graphics)
 
@@ -122,8 +124,8 @@ class PushButtonEvent:
                 #     CData: dict[str, object] = (
                 #         data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
                 #     )
-                #     Sustance: P_Object = P_Object(**CData)  # type: ignore
-                #     self.window.OpenGLWindow.Graphics.append(Sustance)
+                #     Substance: P_Object = P_Object(**CData)  # type: ignore
+                #     self.window.OpenGLWindow.Graphics.append(Substance)
 
                 #     index: int = len(self.window.OpenGLWindow.Graphics)
 
@@ -143,9 +145,19 @@ class PushButtonEvent:
                         data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
                     )
                     print(CData)
-                    Sustance: P_Object = P_Object(**CData)  # type: ignore
-                    self.window.OpenGLWindow.Graphics.append(Sustance)
-                    self.window.OpenGLWindow.DynamicObjects.append(Sustance)
+                    Substance: P_Object = P_Object(**CData)  # type: ignore
+                    Impulse_ArrowVao, Impulse_ArrowVbo = (
+                        Opengl_utils.create_arrow_buffer(self.window.OpenGLWindow)
+                    )
+                    Substance.Impulse_Arrow = Impulse_Arrow(
+                        Impulse_ArrowVao, Impulse_ArrowVbo
+                    )
+                    MA_ArrowVao, MA_ArrowVbo = Opengl_utils.create_arrow_buffer(
+                        self.window.OpenGLWindow
+                    )
+                    Substance.MA_Arrow = MA_Arrow(MA_ArrowVao, MA_ArrowVbo)
+                    self.window.OpenGLWindow.Graphics.append(Substance)
+                    self.window.OpenGLWindow.DynamicObjects.append(Substance)
 
                     index: int = len(self.window.OpenGLWindow.Graphics)
 
@@ -164,9 +176,19 @@ class PushButtonEvent:
                     CData: dict[str, object] = (
                         data | ObjectData | {"Vao": vao, "Vbo": vbo, "Ebo": ebo}
                     )
-                    Sustance: P_Object = P_Object(**CData)  # type: ignore
-                    self.window.OpenGLWindow.Graphics.append(Sustance)
-                    self.window.OpenGLWindow.DynamicObjects.append(Sustance)
+                    Substance: P_Object = P_Object(**CData)  # type: ignore
+                    Impulse_ArrowVao, Impulse_ArrowVbo = (
+                        Opengl_utils.create_arrow_buffer(self.window.OpenGLWindow)
+                    )
+                    Substance.Impulse_Arrow = Impulse_Arrow(
+                        Impulse_ArrowVao, Impulse_ArrowVbo
+                    )
+                    MA_ArrowVao, MA_ArrowVbo = Opengl_utils.create_arrow_buffer(
+                        self.window.OpenGLWindow
+                    )
+                    Substance.MA_Arrow = MA_Arrow(MA_ArrowVao, MA_ArrowVbo)
+                    self.window.OpenGLWindow.Graphics.append(Substance)
+                    self.window.OpenGLWindow.DynamicObjects.append(Substance)
 
                     index: int = len(self.window.OpenGLWindow.Graphics)
 
@@ -189,6 +211,23 @@ class PushButtonEvent:
 
         else:
             self.window.OpenGLWindow.load_demo()
+
+    def set_gravity(self, value: float) -> None:
+        self.window.Gravity_Label.setText(f"Gravity: {value:.2f}")
+        GRAVITY[1] = value
+
+    def ma_arrow(self, state) -> None:  # type: ignore
+        if state == 2:
+            self.window.OpenGLWindow.MA_arrow = True
+        else:
+            self.window.OpenGLWindow.MA_arrow = False
+
+    def impulse_arrow(self, state) -> None:  # type: ignore
+        if state == 2:
+            self.window.OpenGLWindow.Impulse_arrow = True
+
+        else:
+            self.window.OpenGLWindow.Impulse_arrow = False
 
     def delete_object(self) -> None:
         SelectedIndex: Any = self.window.ObjectListView.currentIndex()
@@ -230,21 +269,25 @@ class AddObjectDialog(QDialog):
         self.SelectType = QComboBox()
         self.SelectType.addItems(["Cube", "Sphere"])
 
+        self.Side_Length_Label = QLabel("Side length")
         self.Side_Length = QDoubleSpinBox()
         self.Side_Length.setRange(0, 10)
         self.Side_Length.setValue(2)
         self.Side_Length.setDecimals(2)
 
+        self.X_Coordinate_Label = QLabel("X coordinate")
         self.X_Coordinate = QDoubleSpinBox()
         self.X_Coordinate.setRange(-100, 100)
         self.X_Coordinate.setValue(0)
         self.X_Coordinate.setDecimals(2)
 
+        self.Y_Coordinate_Label = QLabel("Y coordinate")
         self.Y_Coordinate = QDoubleSpinBox()
         self.Y_Coordinate.setRange(-100, 100)
         self.Y_Coordinate.setValue(10)
         self.Y_Coordinate.setDecimals(2)
 
+        self.Z_Coordinate_Label = QLabel("Z coordinate")
         self.Z_Coordinate = QDoubleSpinBox()
         self.Z_Coordinate.setRange(-100, 100)
         self.Z_Coordinate.setValue(0)
@@ -255,11 +298,13 @@ class AddObjectDialog(QDialog):
             f"RGBA: r={self.r}, g={self.g}, b={self.b}, a={self.a}"
         )
 
+        self.Object_Mass_Label = QLabel("Mass")
         self.Object_Mass = QDoubleSpinBox()
         self.Object_Mass.setRange(0, 100)
         self.Object_Mass.setValue(1)
         self.Object_Mass.setDecimals(2)
 
+        self.Object_Restitution_Label = QLabel("Restitution")
         self.Object_Restitution = QDoubleSpinBox()
         self.Object_Restitution.setRange(0, 1)
         self.Object_Restitution.setValue(0.3)
@@ -271,13 +316,19 @@ class AddObjectDialog(QDialog):
         )
 
         MainLayout.addWidget(self.SelectType)
+        MainLayout.addWidget(self.Side_Length_Label)
         MainLayout.addWidget(self.Side_Length)
+        MainLayout.addWidget(self.X_Coordinate_Label)
         MainLayout.addWidget(self.X_Coordinate)
+        MainLayout.addWidget(self.Y_Coordinate_Label)
         MainLayout.addWidget(self.Y_Coordinate)
+        MainLayout.addWidget(self.Z_Coordinate_Label)
         MainLayout.addWidget(self.Z_Coordinate)
         MainLayout.addWidget(self.ColorSelector)
         MainLayout.addWidget(self.ColorResult)
+        MainLayout.addWidget(self.Object_Mass_Label)
         MainLayout.addWidget(self.Object_Mass)
+        MainLayout.addWidget(self.Object_Restitution_Label)
         MainLayout.addWidget(self.Object_Restitution)
         MainLayout.addWidget(self.Accept_Reject)
 

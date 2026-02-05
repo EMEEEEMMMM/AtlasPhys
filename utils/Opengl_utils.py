@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from numpy.typing import NDArray
-from numba import njit   # type: ignore
+from numba import njit  # type: ignore
 from typing import Any
 import os
 from OpenGL.GL import *  # type: ignore
@@ -131,7 +131,8 @@ def lookat(
 
     return ViewMatrix
 
-@njit(nogil=True, fastmath=True, cache=True)   # type: ignore
+
+@njit(nogil=True, fastmath=True, cache=True)  # type: ignore
 def scalef(scale: NDArray[np.float32]) -> NDArray[np.float32]:
     """
     Calculate the scaling matrix
@@ -198,3 +199,40 @@ def analysis_data(
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
     return (vao, vbo, ebo)  # type: ignore
+
+
+def create_arrow_buffer(window: Any) -> tuple[int, int]:
+    """
+    Create VAO & VBO for arrows
+
+    Args:
+        window (Any): Opengl window
+
+    Returns:
+        tuple[int, int]: 1. VAO 2. VBO
+    """
+    window.makeCurrent()
+
+    Vao: int = glGenVertexArrays(1)  # type: ignore
+    Vbo: int = glGenBuffers(1)  # type: ignore
+
+    glBindVertexArray(Vao)
+    glBindBuffer(GL_ARRAY_BUFFER, Vbo)
+
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        6 * 7 * 4,
+        None,
+        GL_DYNAMIC_DRAW,
+    )
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(0))
+    glEnableVertexAttribArray(0)
+
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * 4, ctypes.c_void_p(3 * 4))
+    glEnableVertexAttribArray(1)
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    glBindVertexArray(0)
+
+    return Vao, Vbo  # type: ignore

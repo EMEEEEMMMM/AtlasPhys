@@ -102,6 +102,9 @@ def epa(
         Normals.extend(NewNormals)
         Distances.extend(NewDistances)
 
+        if len(Distances) == 0:
+            return np.array([0.0, 1.0, 0.0], dtype=np.float32), 0.0
+
         Min_Face_Idx = int(np.argmin(Distances))
         MinDist = Distances[Min_Face_Idx]
 

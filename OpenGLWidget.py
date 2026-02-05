@@ -10,7 +10,7 @@ import time
 import threading
 
 from utils import MathPhys_utils, Opengl_utils, Generate_Objects
-from utils.G_Object import P_Object, Coordinate_Axis, Plane
+from utils.G_Object import P_Object, Coordinate_Axis, Plane, Impulse_Arrow, MA_Arrow
 from utils import Step
 from utils import Contact
 
@@ -55,6 +55,9 @@ class Simulator(QOpenGLWidget):
 
         self.Accmulator: float = 0.0
         self.PhysicsStep: float = 0.01
+
+        self.MA_arrow: bool = False
+        self.Impulse_arrow: bool = False
 
     def initializeGL(self) -> None:
         self.fmt = QSurfaceFormat()
@@ -145,6 +148,7 @@ class Simulator(QOpenGLWidget):
 
         LightColor = glGetUniformLocation(self.shader_program, "lightColor")
         glUniform4f(LightColor, 1.0, 1.0, 1.0, 1.0)
+        ScaleMatrix: NDArray[np.float32] = Opengl_utils.scalef(self.Scale_K)
 
         if self.START_OR_STOP:
             self.Accmulator += DeltaTime
@@ -159,13 +163,19 @@ class Simulator(QOpenGLWidget):
                             Contact.generate_contacts(obj, self.DynamicObjects[i])  # type: ignore
                         )
 
-                for obj in self.DynamicObjects:
-                    if obj.Position[1] - obj.Side_Length > self.PlaneObj.Position[1]:
-                        continue
+                try:
+                    for obj in self.DynamicObjects:
+                        if (
+                            obj.Position[1] - obj.Side_Length
+                            > self.PlaneObj.Position[1]
+                        ):
+                            continue
 
-                    all_contacts.extend(
-                        Contact.generate_contacts(self.PlaneObj, obj)  # type: ignore
-                    )
+                        all_contacts.extend(
+                            Contact.generate_contacts(self.PlaneObj, obj)  # type: ignore
+                        )
+                except:
+                    pass
 
                 Contact.solve_contacts(all_contacts, Iterations=4)
                 Contact.positional_correction(all_contacts)
@@ -174,7 +184,7 @@ class Simulator(QOpenGLWidget):
 
         for obj in self.Graphics:
             ModelMatrix: NDArray[np.float32] = obj.get_model_matrix()
-            ScaleMatrix: NDArray[np.float32] = Opengl_utils.scalef(self.Scale_K)
+            
             ModelMatrix = ScaleMatrix @ ModelMatrix
             glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, ModelMatrix.T.flatten())
 
@@ -182,6 +192,30 @@ class Simulator(QOpenGLWidget):
             glDrawElements(
                 obj.GL_Type, obj.Len_Indices, GL_UNSIGNED_INT, ctypes.c_void_p(0)
             )
+            glBindVertexArray(0)
+        
+        Arr = (ScaleMatrix @ np.identity(4, dtype=np.float32)).T.flatten()
+        
+        if self.MA_arrow:
+            for obj in self.DynamicObjects:
+                self.update_ma_arrow(obj)
+                Arrow = obj.MA_Arrow
+                if Arrow and Arrow.VertexCount > 0:
+                    glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, Arr)
+                    glBindVertexArray(Arrow.Vao)
+                    glDrawArrays(GL_LINES, 0, Arrow.VertexCount)
+
+            glBindVertexArray(0)
+
+        if self.Impulse_arrow:
+            for obj in self.DynamicObjects:
+                self.update_impulse_arrow(obj)
+                Arrow = obj.Impulse_Arrow
+                if Arrow and Arrow.VertexCount > 0:
+                    glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, Arr)
+                    glBindVertexArray(Arrow.Vao)
+                    glDrawArrays(GL_LINES, 0, Arrow.VertexCount)
+
             glBindVertexArray(0)
 
         # Clear the buffer and send the instructions to the hardware for immediate execution
@@ -486,6 +520,15 @@ class Simulator(QOpenGLWidget):
         glDeleteBuffers(1, [vbo])
         glDeleteBuffers(1, [ebo])
 
+    def delete_arrows(self, Object: P_Object) -> None:
+        if Object.MA_Arrow:
+            glDeleteVertexArrays(1, [Object.MA_Arrow.Vao])
+            glDeleteBuffers(1, [Object.MA_Arrow.Vbo])
+
+        if Object.Impulse_Arrow:
+            glDeleteVertexArrays(1, [Object.Impulse_Arrow.Vao])
+            glDeleteBuffers(1, [Object.Impulse_Arrow.Vbo])
+
     def get_time(self) -> float:
         """
         Get the Deltatime for every loop
@@ -547,9 +590,9 @@ class Simulator(QOpenGLWidget):
 
         IData: dict[str, Any] = {
             "Side_Length": 2.0,
-            "X_Coordinate": random.randint(-30, 30),
+            "X_Coordinate": random.randint(-5, 5),
             "Y_Coordinate": random.randint(10, 15),
-            "Z_Coordinate": random.randint(-30, 30),
+            "Z_Coordinate": random.randint(-5, 5),
             "R_v": R_v,
             "G_v": G_v,
             "B_v": B_v,
@@ -571,7 +614,10 @@ class Simulator(QOpenGLWidget):
         )
 
         OneOfTheCube: P_Object = P_Object(**CData)
-        print(OneOfTheCube.Velocity, OneOfTheCube.AngularVelocity)
+        Impulse_ArrowVao, Impulse_ArrowVbo = Opengl_utils.create_arrow_buffer(self)
+        OneOfTheCube.Impulse_Arrow = Impulse_Arrow(Impulse_ArrowVao, Impulse_ArrowVbo)
+        MA_ArrowVao, MA_ArrowVbo = Opengl_utils.create_arrow_buffer(self)
+        OneOfTheCube.MA_Arrow = MA_Arrow(MA_ArrowVao, MA_ArrowVbo)
         self.Graphics.append(OneOfTheCube)
         self.DynamicObjects.append(OneOfTheCube)
 
@@ -596,9 +642,9 @@ class Simulator(QOpenGLWidget):
 
         IData: dict[str, Any] = {
             "Side_Length": 2.0,
-            "X_Coordinate": random.randint(-30, 30),
+            "X_Coordinate": random.randint(-5, 5),
             "Y_Coordinate": random.randint(10, 15),
-            "Z_Coordinate": random.randint(-30, 30),
+            "Z_Coordinate": random.randint(-5, 5),
             "R_v": R_v,
             "G_v": G_v,
             "B_v": B_v,
@@ -620,7 +666,10 @@ class Simulator(QOpenGLWidget):
         )
 
         OneOfTheSphere: P_Object = P_Object(**CData)
-        print(OneOfTheSphere.Velocity, OneOfTheSphere.AngularVelocity)
+        Impulse_ArrowVao, Impulse_ArrowVbo = Opengl_utils.create_arrow_buffer(self)
+        OneOfTheSphere.Impulse_Arrow = Impulse_Arrow(Impulse_ArrowVao, Impulse_ArrowVbo)
+        MA_ArrowVao, MA_ArrowVbo = Opengl_utils.create_arrow_buffer(self)
+        OneOfTheSphere.MA_Arrow = MA_Arrow(MA_ArrowVao, MA_ArrowVbo)
         self.Graphics.append(OneOfTheSphere)
         self.DynamicObjects.append(OneOfTheSphere)
 
@@ -630,3 +679,89 @@ class Simulator(QOpenGLWidget):
         self.window_self.ObjectList.endInsertRows()
 
         self.update()
+
+    def update_ma_arrow(self, Object: P_Object, Scale: float = 0.05) -> None:
+        Force: NDArray[np.float32] = Object.Fnet_MA
+        Direction: NDArray[np.float32] = MathPhys_utils.normalize(Force)
+        Length: float = np.linalg.norm(Force) * Scale  # type: ignore
+        Start: NDArray[np.float32] = Object.get_model_matrix()[:3, 3].copy()
+        End: NDArray[np.float32] = Start + Direction * Length  # type: ignore
+
+        if abs(Direction[1]) < 0.9:
+            up: NDArray[np.float32] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+        else:
+            up: NDArray[np.float32] = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+        Side: NDArray[np.float32] = MathPhys_utils.normalize(np.cross(Direction, up))
+        Head_Len: float = Length * 0.2
+        Head_W: float = Length * 0.06
+
+        Base: NDArray[np.float32] = End - Direction * Head_Len  # type: ignore
+        Left: NDArray[np.float32] = Base + Side * Head_W  # type: ignore
+        Right: NDArray[np.float32] = Base - Side * Head_W  # type: ignore
+
+        # fmt: off
+        Vertices: NDArray[np.float32] = np.array([
+            Start[0], Start[1], Start[2], 1.0, 0.0, 0.0, 1.0,
+            End[0], End[1], End[2], 1.0, 0.0, 0.0, 1.0,
+
+            End[0], End[1], End[2], 1.0, 0.0, 0.0, 1.0,
+            Left[0], Left[1], Left[2], 1.0, 0.0, 0.0, 1.0,
+
+            End[0], End[1], End[2], 1.0, 0.0, 0.0, 1.0,
+            Right[0], Right[1], Right[2], 1.0, 0.0, 0.0, 1.0,
+        ], dtype=np.float32)
+
+        glBindBuffer(GL_ARRAY_BUFFER, Object.MA_Arrow.Vbo)   # type: ignore
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            Vertices.nbytes,
+            Vertices,
+            GL_DYNAMIC_DRAW,
+        )
+
+        Object.MA_Arrow.VertexCount = 6 # type: ignore
+
+    def update_impulse_arrow(self, Object: P_Object, Scale: float = 0.02) -> None:
+        Force: NDArray[np.float32] = Object.Fnet_Impulse
+        Direction: NDArray[np.float32] = MathPhys_utils.normalize(Force)
+        Length: float = np.linalg.norm(Force) * Scale  # type: ignore
+        Start: NDArray[np.float32] = Object.get_model_matrix()[:3, 3].copy()
+        End: NDArray[np.float32] = Start + Direction * Length  # type: ignore
+
+        if abs(Direction[1]) < 0.9:
+            up: NDArray[np.float32] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+        else:
+            up: NDArray[np.float32] = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+        Side: NDArray[np.float32] = MathPhys_utils.normalize(np.cross(Direction, up))
+        Head_Len: float = Length * 0.2
+        Head_W: float = Length * 0.06
+
+        Base: NDArray[np.float32] = End - Direction * Head_Len  # type: ignore
+        Left: NDArray[np.float32] = Base + Side * Head_W  # type: ignore
+        Right: NDArray[np.float32] = Base - Side * Head_W  # type: ignore
+
+        # fmt: off
+        Vertices: NDArray[np.float32] = np.array([
+            Start[0], Start[1], Start[2], 0.0, 1.0, 0.0, 1.0,
+            End[0], End[1], End[2], 0.0, 1.0, 0.0, 1.0,
+
+            End[0], End[1], End[2], 0.0, 1.0, 0.0, 1.0,
+            Left[0], Left[1], Left[2], 0.0, 1.0, 0.0, 1.0,
+
+            End[0], End[1], End[2], 0.0, 1.0, 0.0, 1.0,
+            Right[0], Right[1], Right[2], 0.0, 1.0, 0.0, 1.0,
+        ], dtype=np.float32)
+
+        glBindBuffer(GL_ARRAY_BUFFER, Object.Impulse_Arrow.Vbo)   # type: ignore
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            Vertices.nbytes,
+            Vertices,
+            GL_DYNAMIC_DRAW,
+        )
+
+        Object.Impulse_Arrow.VertexCount = 6 # type: ignore

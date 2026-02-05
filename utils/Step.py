@@ -28,6 +28,7 @@ def integrator(
     """
 
     for obj in DynamicObjects:
+        Velocity_old: NDArray[np.float32] = obj.Velocity.copy()
         obj.Velocity += GRAVITY * DeltaTime
         obj.Position += obj.Velocity * DeltaTime
 
@@ -39,6 +40,12 @@ def integrator(
         obj.InvInertiaWorld = (
             obj.RotationMatrix @ obj.InvInertiaBody @ np.transpose(obj.RotationMatrix)
         ).astype(np.float32)
+
+        obj.Fnet_Impulse = obj.Impulse / DeltaTime
+        obj.Impulse[:] = 0.0
+
+        obj.Acceleration = (obj.Velocity - Velocity_old) / DeltaTime
+        obj.Fnet_MA = obj.MASS * obj.Acceleration
 
 
 def the_collision(

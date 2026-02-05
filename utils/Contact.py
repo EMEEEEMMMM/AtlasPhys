@@ -320,6 +320,10 @@ def solve_contact(C: Contact) -> None:  # C here represents one contact
     if Vn > 0.0:
         return
 
+    e: float = min(A.Restitution, B.Restitution)
+    if abs(Vn) < 0.5:
+        e = 0.0
+
     InvMassSum: float = InvMass_A + InvMass_B
 
     if InvMass_A > 0.0:
@@ -337,7 +341,7 @@ def solve_contact(C: Contact) -> None:  # C here represents one contact
     if C.Penetration > SLOP and abs(Vn) < 0.5:
         Bias = BETA * (C.Penetration - SLOP) / DT
 
-    j: float = -(Vn - Bias) / InvMassSum
+    j: float = -((1.0 + e) * Vn - Bias) / InvMassSum
     OldImpulse: float = C.AccmulatedNormalImpulse
     C.AccmulatedNormalImpulse = max(OldImpulse + j, 0.0)
 
@@ -352,10 +356,13 @@ def solve_contact(C: Contact) -> None:  # C here represents one contact
         B.Velocity += Impulse * InvMass_B
         B.AngularVelocity += B.InvInertiaWorld @ np.cross(Rb, Impulse)
 
+    A.Impulse -= Impulse
+    B.Impulse += Impulse
+
 
 def positional_correction(
     contacts: list[Contact], slop: float = 0.01, percent: float = 0.2
-):
+) -> None:
     for C in contacts:
         A: P_Object = C.ObjectA
         B: P_Object = C.ObjectB

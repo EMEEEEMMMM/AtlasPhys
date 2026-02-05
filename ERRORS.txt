@@ -17,6 +17,28 @@ Traceback (most recent call last):
     result = getattr(arr, method)(*args, **kwds)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ValueError: attempt to get argmin of an empty sequence
-
+Traceback (most recent call last):
+  File "/home/bear/AI_GO/wlyq_project/OpenGLWidget.py", line 159, in paintGL
+    Contact.generate_contacts(obj, self.DynamicObjects[i])  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bear/AI_GO/wlyq_project/utils/Contact.py", line 73, in generate_contacts
+    IsColliding, Normal, Depth = the_collision(A, B)
+                                 ^^^^^^^^^^^^^^^^^^^
+  File "/home/bear/AI_GO/wlyq_project/utils/Step.py", line 81, in the_collision
+    Normal, Depth = epa(Tetra, ObjectA, ObjectB)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bear/AI_GO/wlyq_project/utils/EPA.py", line 105, in epa
+    Min_Face_Idx = int(np.argmin(Distances))
+                       ^^^^^^^^^^^^^^^^^^^^
+  File "/home/bear/AI_GO/wlyq_project/.venv/lib/python3.11/site-packages/numpy/_core/fromnumeric.py", line 1439, in argmin
+    return _wrapfunc(a, 'argmin', axis=axis, out=out, **kwds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bear/AI_GO/wlyq_project/.venv/lib/python3.11/site-packages/numpy/_core/fromnumeric.py", line 54, in _wrapfunc
+    return _wrapit(obj, method, *args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bear/AI_GO/wlyq_project/.venv/lib/python3.11/site-packages/numpy/_core/fromnumeric.py", line 46, in _wrapit
+    result = getattr(arr, method)(*args, **kwds)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: attempt to get argmin of an empty sequence
 Solution:
 Using a another method instead of EPA with "THE SPHERE"

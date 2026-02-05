@@ -72,6 +72,14 @@ class P_Object:
         self.XYZVertices: NDArray[np.float32] = np.ascontiguousarray(
             Vertices.reshape(-1, 7)[:, :3]
         )
+        self.Impulse: NDArray[np.float32] = np.zeros(3, dtype=np.float32)
+        self.Fnet_Impulse: NDArray[np.float32] = np.zeros(
+            3, dtype=np.float32
+        )
+        self.Fnet_MA: NDArray[np.float32] = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+
+        self.Impulse_Arrow: Impulse_Arrow | None = None
+        self.MA_Arrow: MA_Arrow | None = None
 
         if Shape == "Sphere":
             self.InertiaBody: NDArray[np.float32] = np.float32(
@@ -176,3 +184,17 @@ class Plane(P_Object):
 
     def update_position(self, DeltaTime: float) -> None:
         pass
+
+
+class MA_Arrow:  # Arrows calculated from object's mass and acceleration which always appear  Fnet = mass * acceleration
+    def __init__(self, Vao: int, Vbo: int) -> None:
+        self.Vao: int = Vao
+        self.Vbo: int = Vbo
+        self.VertexCount: int = 0
+
+
+class Impulse_Arrow:  # Arrows calculated from impulse which only appear when collision happens  Fnet = Impulse / deltatime
+    def __init__(self, Vao: int, Vbo: int) -> None:
+        self.Vao: int = Vao
+        self.Vbo: int = Vbo
+        self.VertexCount: int = 0

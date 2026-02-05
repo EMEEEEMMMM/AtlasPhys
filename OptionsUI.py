@@ -1,9 +1,10 @@
 from PyQt6.QtWidgets import *  # type: ignore
-from PyQt6.QtCore import Qt, QModelIndex, QAbstractListModel, QObject
+from PyQt6.QtCore import Qt, QModelIndex, QAbstractListModel, QObject, pyqtSignal
 from OpenGLWidget import Simulator
-from Handler import PushButtonEvent
+from Handler import Events
 from typing import Any, Optional
-from utils import G_Object
+
+from utils.G_Object import P_Object
 
 
 class MainWindow(QMainWindow):
@@ -36,11 +37,12 @@ class MainWindow(QMainWindow):
         self.AddSphere = QPushButton("Shortcut to add a sphere")
 
         Slider_Label = QLabel("Properties")
-        Slider1_Label = QLabel("Slider 1")
-        Slider1 = QSlider(Qt.Orientation.Horizontal)
-        Slider1.setMinimum(0)
-        Slider1.setMaximum(100)
-        Slider1.setValue(50)
+        self.Gravity_Label = QLabel("Gravity:")
+        Gravity = FloatSlider(parent=LeftSidebar)
+        Gravity.setRange(-100 * Gravity.multiplier(), 0)
+        Gravity.setFloatValue(-9.8)
+        Gravity.setTickPosition(QSlider.TickPosition.TicksAbove)
+
         Slider2_Label = QLabel("Slider 2")
         Slider2 = QSlider(Qt.Orientation.Horizontal)
         Slider2.setMinimum(0)
@@ -62,6 +64,9 @@ class MainWindow(QMainWindow):
         Slider5.setMaximum(100)
         Slider5.setValue(50)
 
+        MA_Arrow = QCheckBox("MA Arrow")
+        Impulse_Arrow = QCheckBox("Impulse Arrow")
+
         LeftSidebarLayout.addWidget(LeftSidebar_Label)
         LeftSidebarLayout.addWidget(SwitchP_Mode)
         LeftSidebarLayout.addWidget(AddObjects)
@@ -73,16 +78,19 @@ class MainWindow(QMainWindow):
         LeftSidebarLayout.addWidget(self.AddSphere)
 
         LeftSidebarLayout.addWidget(Slider_Label)
-        LeftSidebarLayout.addWidget(Slider1_Label)
-        LeftSidebarLayout.addWidget(Slider1)
-        LeftSidebarLayout.addWidget(Slider2_Label)
-        LeftSidebarLayout.addWidget(Slider2)
-        LeftSidebarLayout.addWidget(Slider3_Label)
-        LeftSidebarLayout.addWidget(Slider3)
-        LeftSidebarLayout.addWidget(Slider4_Label)
-        LeftSidebarLayout.addWidget(Slider4)
-        LeftSidebarLayout.addWidget(Slider5_Label)
-        LeftSidebarLayout.addWidget(Slider5)
+        LeftSidebarLayout.addWidget(self.Gravity_Label)
+        LeftSidebarLayout.addWidget(Gravity)
+        # LeftSidebarLayout.addWidget(Slider2_Label)
+        # LeftSidebarLayout.addWidget(Slider2)
+        # LeftSidebarLayout.addWidget(Slider3_Label)
+        # LeftSidebarLayout.addWidget(Slider3)
+        # LeftSidebarLayout.addWidget(Slider4_Label)
+        # LeftSidebarLayout.addWidget(Slider4)
+        # LeftSidebarLayout.addWidget(Slider5_Label)
+        # LeftSidebarLayout.addWidget(Slider5)
+
+        LeftSidebarLayout.addWidget(MA_Arrow)
+        LeftSidebarLayout.addWidget(Impulse_Arrow)
 
         self.OpenGLWindow = Simulator(self)
 
@@ -103,24 +111,29 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(MainWidget)
 
-        self.PushButtonEvent = PushButtonEvent(self)
+        self.Events = Events(self)
 
-        SwitchP_Mode.clicked.connect(
-            lambda: self.PushButtonEvent.switch_projection_mode()
-        )
-        AddObjects.clicked.connect(lambda: self.PushButtonEvent.add_object())
+        SwitchP_Mode.clicked.connect(lambda: self.Events.switch_projection_mode())
+        AddObjects.clicked.connect(lambda: self.Events.add_object())
         AddOrDeleteCoordinateAxis.clicked.connect(
-            lambda: self.PushButtonEvent.add_or_delelte_coordinate_axis()
+            lambda: self.Events.add_or_delelte_coordinate_axis()
         )
         self.AddOrDeletePlane.clicked.connect(
-            lambda: self.PushButtonEvent.add_or_delelte_plane()
+            lambda: self.Events.add_or_delelte_plane()
         )
-        StartOrStop.clicked.connect(lambda: self.PushButtonEvent.start_or_stop())
-        LoadDemo.clicked.connect(lambda: self.PushButtonEvent.load_or_reload_demo())
-        DeleteObjectBtn.clicked.connect(lambda: self.PushButtonEvent.delete_object())
+        StartOrStop.clicked.connect(lambda: self.Events.start_or_stop())
+        LoadDemo.clicked.connect(lambda: self.Events.load_or_reload_demo())
+        DeleteObjectBtn.clicked.connect(lambda: self.Events.delete_object())
 
         self.AddCube.clicked.connect(lambda: self.OpenGLWindow.add_demo_cube())
         self.AddSphere.clicked.connect(lambda: self.OpenGLWindow.add_demo_sphere())
+
+        Gravity.valueChangedFloat.connect(
+            lambda gravity_value: self.Events.set_gravity(gravity_value)  # type: ignore
+        )
+
+        MA_Arrow.stateChanged.connect(lambda state: self.Events.ma_arrow(state))  # type: ignore
+        Impulse_Arrow.stateChanged.connect(lambda state: self.Events.impulse_arrow(state))  # type: ignore
 
         self.ObjectListView.setSelectionMode(QListView.SelectionMode.SingleSelection)
         self.ObjectListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
@@ -140,7 +153,7 @@ class ListObjectModel(QAbstractListModel):
         super().__init__(parent)
         self.OpenGLWindow = OpenGLWindow
         self.ObjectList = self.OpenGLWindow.Graphics
-        self.DynamicObjects= self.OpenGLWindow.DynamicObjects
+        self.DynamicObjects: list[P_Object] = self.OpenGLWindow.DynamicObjects
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.ObjectList) if not parent.isValid() else 0
@@ -158,7 +171,7 @@ class ListObjectModel(QAbstractListModel):
     def delete_selected(self, index: QModelIndex) -> None:
         if index.isValid():
             self.beginRemoveRows(QModelIndex(), index.row(), index.row())
-            obj: G_Object.P_Object = self.ObjectList[index.row()]
+            obj: P_Object = self.ObjectList[index.row()]
 
             match obj.Shape:
 
@@ -176,6 +189,7 @@ class ListObjectModel(QAbstractListModel):
 
                 case _:
                     self.OpenGLWindow.delete_single_object(obj.VAO, obj.VBO, obj.EBO)
+                    self.OpenGLWindow.delete_arrows(obj)
                     del self.ObjectList[index.row()]
                     self.endRemoveRows()
 
@@ -184,3 +198,29 @@ class ListObjectModel(QAbstractListModel):
         self.DynamicObjects.clear()
         self.ObjectList.clear()
         self.endRemoveRows()
+
+
+class FloatSlider(QSlider):
+    valueChangedFloat = pyqtSignal(float)
+
+    def __init__(self, parent=None) -> None:  # type: ignore
+        super().__init__(Qt.Orientation.Horizontal, parent)  # type: ignore
+        self._multiplier: int = 10
+
+        self.valueChanged.connect(self.emitFloatValueChanged)
+
+    def setFloatValue(self, floatValue: float) -> None:
+        intValue = int(floatValue * self._multiplier)
+        self.setValue(intValue)
+
+    def floatValue(self) -> float:
+        return self.value() / self._multiplier
+
+    def emitFloatValueChanged(self) -> None:
+        self.valueChangedFloat.emit(self.floatValue())
+
+    def setMultiplier(self, multiplier: int) -> None:
+        self._multiplier = multiplier
+
+    def multiplier(self) -> int:
+        return self._multiplier
