@@ -4,7 +4,6 @@ import numpy as np
 from numpy.typing import NDArray
 from numba import njit  # type: ignore
 from typing import Any
-import os
 from OpenGL.GL import *  # type: ignore
 
 
@@ -154,7 +153,7 @@ def scalef(scale: NDArray[np.float32]) -> NDArray[np.float32]:
 
 def resource_path(Relative: str) -> Path:
     if hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS) / Relative
+        return Path(sys._MEIPASS) / Relative   # type: ignore
     return Path(__file__).resolve().parent.parent / Relative
 
 def analysis_data(
