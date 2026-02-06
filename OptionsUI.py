@@ -190,6 +190,7 @@ class ListObjectModel(QAbstractListModel):
                 case _:
                     self.OpenGLWindow.delete_single_object(obj.VAO, obj.VBO, obj.EBO)
                     self.OpenGLWindow.delete_arrows(obj)
+                    self.DynamicObjects.remove(obj)
                     del self.ObjectList[index.row()]
                     self.endRemoveRows()
 

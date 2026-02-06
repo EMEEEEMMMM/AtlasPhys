@@ -39,7 +39,7 @@ def integrator(
 
         obj.InvInertiaWorld = (
             obj.RotationMatrix @ obj.InvInertiaBody @ np.transpose(obj.RotationMatrix)
-        ).astype(np.float32)
+        ) # type: ignore
 
         obj.Fnet_Impulse = obj.Impulse / DeltaTime
         obj.Impulse[:] = 0.0

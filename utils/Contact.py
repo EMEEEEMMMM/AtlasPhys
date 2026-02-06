@@ -121,7 +121,7 @@ def generate_pc_contacts(
             )
 
     Contacts.sort(key=lambda c: c.Penetration, reverse=True)
-    return Contacts[:2]
+    return Contacts[:1]
 
 
 def generate_ps_contacts(Plane: P_Object, Sphere: P_Object) -> list[Contact]:
@@ -158,7 +158,7 @@ def generate_ps_contacts(Plane: P_Object, Sphere: P_Object) -> list[Contact]:
         )
     )
 
-    return Contacts
+    return Contacts[:2]
 
 
 def generate_ss_contacts(SphereA: P_Object, SphereB: P_Object) -> list[Contact]:
@@ -196,7 +196,7 @@ def generate_ss_contacts(SphereA: P_Object, SphereB: P_Object) -> list[Contact]:
         )
     )
 
-    return Contacts
+    return Contacts[:4]
 
 
 def generate_cc_contacts(
@@ -289,7 +289,7 @@ def generate_cs_contacts(Cube: P_Object, Sphere: P_Object) -> list[Contact]:
         )
     )
 
-    return Contacts
+    return Contacts[:4]
 
 
 def solve_contacts(Contacts: list[Contact], Iterations: int = 8) -> None:
@@ -337,11 +337,7 @@ def solve_contact(C: Contact) -> None:  # C here represents one contact
     if InvMassSum == 0.0:
         return
 
-    Bias: float = 0.0
-    if C.Penetration > SLOP and abs(Vn) < 0.5:
-        Bias = BETA * (C.Penetration - SLOP) / DT
-
-    j: float = -((1.0 + e) * Vn - Bias) / InvMassSum
+    j: float = -(1.0 + e) * Vn / InvMassSum
     OldImpulse: float = C.AccmulatedNormalImpulse
     C.AccmulatedNormalImpulse = max(OldImpulse + j, 0.0)
 
