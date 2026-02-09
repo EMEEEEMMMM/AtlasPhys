@@ -33,14 +33,14 @@ def integrator(
         obj.Position += obj.Velocity * DeltaTime
 
         Tau: NDArray[np.float32] = np.zeros(3, dtype=np.float32)
-        obj.AngularVelocity += (obj.InvInertiaWorld @ Tau) * DeltaTime
+        
         obj.Rotation += obj.AngularVelocity * DeltaTime
         obj.RotationMatrix = euler_to_matrix(obj.Rotation)
 
         obj.InvInertiaWorld = (
             obj.RotationMatrix @ obj.InvInertiaBody @ np.transpose(obj.RotationMatrix)
         ) # type: ignore
-
+        obj.AngularVelocity += (obj.InvInertiaWorld @ Tau) * DeltaTime
         obj.Fnet_Impulse = obj.Impulse / DeltaTime
         obj.Impulse[:] = 0.0
 

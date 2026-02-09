@@ -156,10 +156,10 @@ class Simulator(QOpenGLWidget):
             while self.Accmulator >= self.PhysicsStep:
                 Step.integrator(self.DynamicObjects, self.PhysicsStep)
 
-                all_contacts: list[Contact.Contact] = []
+                Manifolds_all: list[Contact.ContactManifold] = []
                 for idx, obj in enumerate(self.DynamicObjects):
                     for i in range(idx + 1, len(self.DynamicObjects)):
-                        all_contacts.extend(
+                        Manifolds_all.extend(
                             Contact.generate_contacts(obj, self.DynamicObjects[i])  # type: ignore
                         )
 
@@ -171,14 +171,17 @@ class Simulator(QOpenGLWidget):
                         ):
                             continue
 
-                        all_contacts.extend(
+                        Manifolds_all.extend(
                             Contact.generate_contacts(self.PlaneObj, obj)  # type: ignore
                         )
                 except:
                     pass
+                
+                Manifolds_all.sort(key=lambda M: min(C.Point[1] for C in M.Contacts))
 
-                Contact.solve_contacts(all_contacts, Iterations=4)
-                Contact.positional_correction(all_contacts)
+                Contact.solve_manifolds(Manifolds_all, Iterations=20)
+                for M in Manifolds_all:
+                    Contact.positional_correction_manifold(M)
 
                 self.Accmulator -= self.PhysicsStep
 
@@ -443,7 +446,7 @@ class Simulator(QOpenGLWidget):
             "B_v": 0.5,
             "A_v": 1.0,
             "Mass": float("inf"),
-            "Restitution": 1.0,
+            "Restitution": 0.0,
             "GL_Type": GL_TRIANGLES,
             "Vertices": Vertices,
             "Indices": Indices,

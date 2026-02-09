@@ -219,6 +219,7 @@ class Events:
     def ma_arrow(self, state) -> None:  # type: ignore
         if state == 2:
             self.window.OpenGLWindow.MA_arrow = True
+            print("111")
         else:
             self.window.OpenGLWindow.MA_arrow = False
 
