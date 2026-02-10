@@ -12,7 +12,7 @@ import threading
 from utils import MathPhys_utils, Opengl_utils, Generate_Objects
 from utils.G_Object import P_Object, Coordinate_Axis, Plane, Impulse_Arrow, MA_Arrow
 from utils import Step
-from utils import Contact
+from utils.Contact import ManifoldManager, PersistentContactManifold
 
 
 class Simulator(QOpenGLWidget):
@@ -56,8 +56,7 @@ class Simulator(QOpenGLWidget):
         self.Accmulator: float = 0.0
         self.PhysicsStep: float = 0.01
 
-        self.MA_arrow: bool = False
-        self.Impulse_arrow: bool = False
+        self.Manifold_Manager = ManifoldManager()
 
     def initializeGL(self) -> None:
         self.fmt = QSurfaceFormat()
@@ -154,40 +153,49 @@ class Simulator(QOpenGLWidget):
             self.Accmulator += DeltaTime
 
             while self.Accmulator >= self.PhysicsStep:
+
+                for obj in self.DynamicObjects:
+                    obj.Fnet_MA = np.zeros(3, dtype=np.float32)
+                    obj.Fnet_Impulse = np.zeros(3, dtype=np.float32)
+                    obj.Impulse = np.zeros(3, dtype=np.float32)
+
+                for obj in self.DynamicObjects:
+                    if obj.MASS != float("inf"):
+                        obj.Fnet_MA[1] = -9.8 * obj.MASS
+
+                Manifolds: list[PersistentContactManifold] = (
+                    self.Manifold_Manager.update(self.Graphics)
+                )
+
+                for M in Manifolds:
+                    M.warm_start()
+
+                for _ in range(4):
+                    for M in Manifolds:  # type: ignore
+                        M.solve()
+
+                for M in Manifolds:  # type: ignore
+                    for C in M.Contacts:
+                        Impulse: NDArray[np.float32] = C.NormalImpulse * M.Normal
+                        if M.A.ReciprocalMass > 0:
+                            M.A.Impulse -= Impulse
+                        if M.B.ReciprocalMass > 0:
+                            M.B.Impulse += Impulse
+
+                for M in Manifolds:  # type: ignore
+                    M.positional_correction()
+
                 Step.integrator(self.DynamicObjects, self.PhysicsStep)
 
-                Manifolds_all: list[Contact.ContactManifold] = []
-                for idx, obj in enumerate(self.DynamicObjects):
-                    for i in range(idx + 1, len(self.DynamicObjects)):
-                        Manifolds_all.extend(
-                            Contact.generate_contacts(obj, self.DynamicObjects[i])  # type: ignore
-                        )
-
-                try:
-                    for obj in self.DynamicObjects:
-                        if (
-                            obj.Position[1] - obj.Side_Length
-                            > self.PlaneObj.Position[1]
-                        ):
-                            continue
-
-                        Manifolds_all.extend(
-                            Contact.generate_contacts(self.PlaneObj, obj)  # type: ignore
-                        )
-                except:
-                    pass
-                
-                Manifolds_all.sort(key=lambda M: min(C.Point[1] for C in M.Contacts))
-
-                Contact.solve_manifolds(Manifolds_all, Iterations=20)
-                for M in Manifolds_all:
-                    Contact.positional_correction_manifold(M)
+                for obj in self.DynamicObjects:
+                    self.update_ma_arrow(obj)
+                    self.update_impulse_arrow(obj)
 
                 self.Accmulator -= self.PhysicsStep
 
         for obj in self.Graphics:
             ModelMatrix: NDArray[np.float32] = obj.get_model_matrix()
-            
+
             ModelMatrix = ScaleMatrix @ ModelMatrix
             glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, ModelMatrix.T.flatten())
 
@@ -196,10 +204,10 @@ class Simulator(QOpenGLWidget):
                 obj.GL_Type, obj.Len_Indices, GL_UNSIGNED_INT, ctypes.c_void_p(0)
             )
             glBindVertexArray(0)
-        
+
         Arr = (ScaleMatrix @ np.identity(4, dtype=np.float32)).T.flatten()
-        
-        if self.MA_arrow:
+
+        if self.window_self.MA_Arrow.isChecked():
             for obj in self.DynamicObjects:
                 self.update_ma_arrow(obj)
                 Arrow = obj.MA_Arrow
@@ -210,7 +218,7 @@ class Simulator(QOpenGLWidget):
 
             glBindVertexArray(0)
 
-        if self.Impulse_arrow:
+        if self.window_self.Impulse_Arrow.isChecked():
             for obj in self.DynamicObjects:
                 self.update_impulse_arrow(obj)
                 Arrow = obj.Impulse_Arrow
@@ -316,7 +324,8 @@ class Simulator(QOpenGLWidget):
         # Vertex_shader
         vertex_shader = glCreateShader(GL_VERTEX_SHADER)
         glShaderSource(
-            vertex_shader, Opengl_utils.resource_path("ShaderProgram/vertex_shader.vert").read_text()
+            vertex_shader,
+            Opengl_utils.resource_path("ShaderProgram/vertex_shader.vert").read_text(),
         )
         glCompileShader(vertex_shader)
 
@@ -324,7 +333,9 @@ class Simulator(QOpenGLWidget):
         fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
         glShaderSource(
             fragment_shader,
-            Opengl_utils.resource_path("ShaderProgram/fragment_shader.frag").read_text(),
+            Opengl_utils.resource_path(
+                "ShaderProgram/fragment_shader.frag"
+            ).read_text(),
         )
         glCompileShader(fragment_shader)
 
@@ -683,10 +694,10 @@ class Simulator(QOpenGLWidget):
 
         self.update()
 
-    def update_ma_arrow(self, Object: P_Object, Scale: float = 0.05) -> None:
+    def update_ma_arrow(self, Object: P_Object) -> None:
         Force: NDArray[np.float32] = Object.Fnet_MA
         Direction: NDArray[np.float32] = MathPhys_utils.normalize(Force)
-        Length: float = np.linalg.norm(Force) * Scale  # type: ignore
+        Length: float = np.linalg.norm(Force) * 0.1  # type: ignore
         Start: NDArray[np.float32] = Object.get_model_matrix()[:3, 3].copy()
         End: NDArray[np.float32] = Start + Direction * Length  # type: ignore
 
@@ -726,10 +737,10 @@ class Simulator(QOpenGLWidget):
 
         Object.MA_Arrow.VertexCount = 6 # type: ignore
 
-    def update_impulse_arrow(self, Object: P_Object, Scale: float = 0.02) -> None:
+    def update_impulse_arrow(self, Object: P_Object) -> None:
         Force: NDArray[np.float32] = Object.Fnet_Impulse
         Direction: NDArray[np.float32] = MathPhys_utils.normalize(Force)
-        Length: float = np.linalg.norm(Force) * Scale  # type: ignore
+        Length: float = np.linalg.norm(Force) * 0.05  # type: ignore
         Start: NDArray[np.float32] = Object.get_model_matrix()[:3, 3].copy()
         End: NDArray[np.float32] = Start + Direction * Length  # type: ignore
 

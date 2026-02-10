@@ -64,8 +64,8 @@ class MainWindow(QMainWindow):
         Slider5.setMaximum(100)
         Slider5.setValue(50)
 
-        MA_Arrow = QCheckBox("MA Arrow")
-        Impulse_Arrow = QCheckBox("Impulse Arrow")
+        self.MA_Arrow = QCheckBox("MA Arrow")
+        self.Impulse_Arrow = QCheckBox("Impulse Arrow")
 
         LeftSidebarLayout.addWidget(LeftSidebar_Label)
         LeftSidebarLayout.addWidget(SwitchP_Mode)
@@ -89,8 +89,8 @@ class MainWindow(QMainWindow):
         # LeftSidebarLayout.addWidget(Slider5_Label)
         # LeftSidebarLayout.addWidget(Slider5)
 
-        LeftSidebarLayout.addWidget(MA_Arrow)
-        LeftSidebarLayout.addWidget(Impulse_Arrow)
+        LeftSidebarLayout.addWidget(self.MA_Arrow)
+        LeftSidebarLayout.addWidget(self.Impulse_Arrow)
 
         self.OpenGLWindow = Simulator(self)
 
@@ -132,8 +132,6 @@ class MainWindow(QMainWindow):
             lambda gravity_value: self.Events.set_gravity(gravity_value)  # type: ignore
         )
 
-        MA_Arrow.stateChanged.connect(lambda state: self.Events.ma_arrow(state))  # type: ignore
-        Impulse_Arrow.stateChanged.connect(lambda state: self.Events.impulse_arrow(state))  # type: ignore
 
         self.ObjectListView.setSelectionMode(QListView.SelectionMode.SingleSelection)
         self.ObjectListView.setEditTriggers(QListView.EditTrigger.NoEditTriggers)

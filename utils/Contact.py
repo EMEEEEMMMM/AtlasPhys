@@ -2,53 +2,299 @@ import numpy as np
 from numpy.typing import NDArray
 
 from utils.G_Object import P_Object
+from utils.GJK import check_aabb
 from utils.MathPhys_utils import normalize
 from utils.Step import the_collision
 
-SLOP: float = 0.02
-BETA: float = 0.1
 DT: float = 0.01
+BAUMGARTE: float = 0.15
+SLOP: float = 0.01
+FRICTION: float = 0.5
+
+MAX_CONTACTS: int = 4
+CONTACT_MATCH_DIST: float = 0.02
 
 
-class Contact:
-    __slots__ = ("Point", "Penetration", "Ra", "Rb", "NormalImpulse")
-
-    def __init__(self, Point: NDArray[np.float32], Penetration: float) -> None:
-        self.Point: NDArray[np.float32] = Point
-        self.Penetration: float = Penetration
-        self.Ra: NDArray[np.float32] | None = None
-        self.Rb: NDArray[np.float32] | None = None
-        self.NormalImpulse: float = 0.0
-
-
-class ContactManifold:
+class ContactPoint:
     __slots__ = (
-        "ObjectA",
-        "ObjectB",
-        "Normal",
-        "Contacts",
-        "AccmulatedTangentImpulse",
-        "Key",
+        "LocalA",
+        "LocalB",
+        "Penetration",
+        "NormalImpulse",
+        "TangentImpulse",
+        "Ra",
+        "Rb",
+        "Active",
     )
 
     def __init__(
         self,
-        ObjectA: P_Object,
-        ObjectB: P_Object,
-        Normal: NDArray[np.float32],
+        LocalA: NDArray[np.float32],
+        LocalB: NDArray[np.float32],
+        Penetration: float,
     ) -> None:
-        self.ObjectA: P_Object = ObjectA
-        self.ObjectB: P_Object = ObjectB
-        self.Normal: NDArray[np.float32] = normalize(Normal)
-        self.Contacts: list[Contact] = []
-        self.AccmulatedTangentImpulse: float = 0.0
-        self.Key: tuple[int, int] = (
-            id(ObjectA),
-            id(ObjectB),
+        self.LocalA: NDArray[np.float32] = LocalA
+        self.LocalB: NDArray[np.float32] = LocalB
+        self.Penetration: float = Penetration
+
+        self.NormalImpulse: float = 0.0
+        self.TangentImpulse: NDArray[np.float32] = np.zeros(2, dtype=np.float32)
+        self.Ra: NDArray[np.float32] = np.array([], dtype=np.float32)
+        self.Rb: NDArray[np.float32] = np.array([], dtype=np.float32)
+        self.Active: bool = True
+
+
+class PersistentContactManifold:
+    __slots__ = (
+        "A",
+        "B",
+        "Normal",
+        "Tangent1",
+        "Tangent2",
+        "Contacts",
+        "Key",
+    )
+
+    def __init__(self, A: P_Object, B: P_Object):
+        self.A: P_Object = A  # type: ignore
+        self.B: P_Object = B  # type: ignore
+        self.Normal: NDArray[np.float32] = np.array([], dtype=np.float32)
+        self.Tangent1: NDArray[np.float32] = np.array([], dtype=np.float32)
+        self.Tangent2: NDArray[np.float32] = np.array([], dtype=np.float32)
+        self.Contacts: list[ContactPoint] = []
+        self.Key: tuple[int, int] = (id(A), id(B))
+
+    def update_from_collision(
+        self,
+        Normal: NDArray[np.float32],
+        ContactPoints_World: list[tuple[NDArray[np.float32], float]],
+    ) -> None:
+        if Normal.size < 3 or np.linalg.norm(Normal) < 1e-6:
+            return
+        
+        self.Normal = normalize(Normal)
+
+        if abs(self.Normal[1]) < 0.9:
+            UpVector: NDArray[np.float32] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+        else:
+            UpVector = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+        self.Tangent1 = normalize(np.cross(self.Normal, UpVector))
+
+        if np.linalg.norm(self.Tangent1) < 1e-6:
+            UpVector = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+            self.Tangent1 = normalize(np.cross(self.Normal, UpVector))
+
+        self.Tangent2 = normalize(np.cross(self.Normal, self.Tangent1))
+
+        NewContacts: list[ContactPoint] = []
+
+        for p, penetration in ContactPoints_World:
+            LocalA: NDArray[np.float32] = self.A.RotationMatrix.T @ (
+                p - self.A.Position  # type: ignore
+            )
+            LocalB: NDArray[np.float32] = self.B.RotationMatrix.T @ (p - self.B.Position)  # type: ignore
+
+            C_Point: ContactPoint = ContactPoint(LocalA, LocalB, penetration)
+            NewContacts.append(C_Point)
+
+        self._match_contacts(NewContacts)
+        self._reduce_contacts()
+
+    def _match_contacts(self, NewContacts: list[ContactPoint]) -> None:
+        for nc in NewContacts:
+            Best = None  # type: ignore
+            BestDist: float = CONTACT_MATCH_DIST
+
+            for oc in self.Contacts:
+                Wa = self.A.RotationMatrix @ oc.LocalA + self.A.Position
+                Wb = self.B.RotationMatrix @ oc.LocalB + self.B.Position
+                Wp = 0.5 * (Wa + Wb)
+
+                Na = self.A.RotationMatrix @ nc.LocalA + self.A.Position
+                Nb = self.B.RotationMatrix @ nc.LocalB + self.B.Position
+                Npw = 0.5 * (Na + Nb)
+
+                Dist: float = np.linalg.norm(Wp - Npw)  # type: ignore
+                if Dist < BestDist:
+                    Best: ContactPoint = oc
+                    BestDist: float = Dist
+
+            if Best is not None:  # type: ignore
+                nc.NormalImpulse = Best.NormalImpulse
+                nc.TangentImpulse = Best.TangentImpulse.copy()
+
+        self.Contacts = NewContacts
+
+    def _reduce_contacts(self) -> None:
+        if len(self.Contacts) <= MAX_CONTACTS:
+            return
+
+        self.Contacts.sort(key=lambda c: c.Penetration, reverse=True)
+        self.Contacts = self.Contacts[:MAX_CONTACTS]
+
+    def warm_start(self) -> None:
+        for C in self.Contacts:
+            C.Ra = self.A.RotationMatrix @ C.LocalA
+            C.Rb = self.B.RotationMatrix @ C.LocalB
+
+            Impulse = C.NormalImpulse * self.Normal
+
+            Impulse += C.TangentImpulse[0] * self.Tangent1
+            Impulse += C.TangentImpulse[1] * self.Tangent2
+
+            _apply_impulse(self.A, self.B, Impulse, C.Ra, C.Rb)
+
+    def solve(self) -> None:
+        for C in self.Contacts:
+            Ra = C.Ra
+            Rb = C.Rb
+
+            Va: NDArray[np.float32] = self.A.Velocity + np.cross(self.A.AngularVelocity, Ra)  # type: ignore
+            Vb: NDArray[np.float32] = self.B.Velocity + np.cross(self.B.AngularVelocity, Rb)  # type: ignore
+            Vrel: NDArray[np.float32] = Vb - Va
+            Vn: float = np.dot(Vrel, self.Normal)
+
+            k: float = (
+                self.A.ReciprocalMass
+                + self.B.ReciprocalMass
+                + np.dot(
+                    np.cross(self.A.InvInertiaWorld @ np.cross(Ra, self.Normal), Ra)
+                    + np.cross(self.B.InvInertiaWorld @ np.cross(Rb, self.Normal), Rb),
+                    self.Normal,
+                )
+            )
+
+            if k == 0.0:
+                continue
+
+            j: float = -Vn / k
+
+            Old: float = C.NormalImpulse
+            C.NormalImpulse = max(Old + j, 0.0)
+            Delta_j: float = C.NormalImpulse - Old
+
+            _apply_impulse(
+                self.A,
+                self.B,
+                Delta_j * self.Normal,
+                Ra,
+                Rb,
+            )
+
+            if FRICTION > 0:
+                Va = self.A.Velocity + np.cross(self.A.AngularVelocity, Ra)  # type: ignore
+                Vb = self.B.Velocity + np.cross(self.B.AngularVelocity, Rb)  # type: ignore
+                Vrel = Vb - Va
+
+                for i, tangent in enumerate([self.Tangent1, self.Tangent2]):
+                    Vt: float = np.dot(Vrel, tangent)
+
+                    kt: float = (
+                        self.A.ReciprocalMass
+                        + self.B.ReciprocalMass
+                        + np.dot(
+                            np.cross(self.A.InvInertiaWorld @ np.cross(Ra, tangent), Ra)
+                            + np.cross(
+                                self.B.InvInertiaWorld @ np.cross(Rb, tangent), Rb
+                            ),
+                            tangent,
+                        )
+                    )
+
+                    if kt == 0.0:
+                        continue
+
+                    jt: float = -Vt / kt
+
+                    MaxFriction: float = FRICTION * C.NormalImpulse
+                    OldTangent = C.TangentImpulse[i]
+                    C.TangentImpulse[i] = np.clip(
+                        OldTangent + jt, -MaxFriction, MaxFriction
+                    )
+                    Delta_jt = C.TangentImpulse[i] - OldTangent
+
+                    _apply_impulse(self.A, self.B, Delta_jt * tangent, Ra, Rb)
+
+    def positional_correction(self) -> None:
+        if self.A.ReciprocalMass + self.B.ReciprocalMass == 0:
+            return
+
+        Penetration: float = max(c.Penetration for c in self.Contacts)
+        if Penetration <= SLOP:
+            return
+
+        Correction: NDArray[np.float32] = (
+            0.2
+            * (Penetration - SLOP)
+            / (self.A.ReciprocalMass + self.B.ReciprocalMass)
+            * self.Normal
         )
 
+        if self.A.ReciprocalMass > 0:
+            self.A.Position -= Correction * self.A.ReciprocalMass
+        if self.B.ReciprocalMass > 0:
+            self.B.Position += Correction * self.B.ReciprocalMass
 
-def generate_contacts(A: P_Object, B: P_Object) -> list[ContactManifold] | None:
+
+class ManifoldManager:
+    def __init__(self) -> None:
+        self.Manifolds: dict[tuple[int, int], PersistentContactManifold] = {}
+
+    def update(self, Objects: list[P_Object]) -> list[PersistentContactManifold]:
+        ActiveKeys: set[int] = set()
+        Result: list[PersistentContactManifold] = []
+
+        N: int = len(Objects)
+        for i in range(N):
+            for j in range(i + 1, N):
+                A: P_Object = Objects[i]
+                B: P_Object = Objects[j]
+
+                if not check_aabb(
+                    A.X_MAX + A.Position[0],
+                    A.X_MIN + A.Position[0],
+                    A.Y_MAX + A.Position[1],
+                    A.Y_MIN + A.Position[1],
+                    A.Z_MAX + A.Position[2],
+                    A.Z_MIN + A.Position[2],
+                    B.X_MAX + B.Position[0],
+                    B.X_MIN + B.Position[0],
+                    B.Y_MAX + B.Position[1],
+                    B.Y_MIN + B.Position[1],
+                    B.Z_MAX + B.Position[2],
+                    B.Z_MIN + B.Position[2],
+                ):
+                    continue
+
+                Key: tuple[int, int] = (id(A), id(B))
+                ActiveKeys.add(Key)  # type: ignore
+
+                if Key not in self.Manifolds:
+                    self.Manifolds[Key] = PersistentContactManifold(A, B)
+
+                Manifold: PersistentContactManifold = self.Manifolds[Key]
+
+                ContactsWorld, Normal = generate_contacts(A, B)  # type: ignore
+                if not ContactsWorld:
+                    continue
+
+                Manifold.update_from_collision(Normal, ContactsWorld)
+                Result.append(Manifold)
+
+        Dead: list[tuple[int, int]] = [
+            k for k in self.Manifolds.keys() if k not in ActiveKeys  # type: ignore
+        ]
+        for k in Dead:
+            del self.Manifolds[k]
+
+        return Result
+
+
+def generate_contacts(
+    A: P_Object, B: P_Object
+) -> tuple[list[tuple[NDArray[np.float32], float]] | None, NDArray[np.float32]]:
     """
     To generate contacts for the following types of objects: Plane, Sphere, Cube, Convex(later)
 
@@ -79,29 +325,23 @@ def generate_contacts(A: P_Object, B: P_Object) -> list[ContactManifold] | None:
             return generate_ss_contacts(A, B)
 
         case "Cube", "Cube":
-            IsColliding: bool
-            Normal: NDArray[np.float32]
-            Depth: float
-            IsColliding, Normal, Depth = the_collision(A, B)
-            if not IsColliding:
-                return []
-
-            return generate_cc_contacts(A, B, Normal)
+            return generate_cc_contacts(A, B)
 
         case "Cube", "Sphere":
             return generate_cs_contacts(A, B)
 
         case "Sphere", "Cube":
-            return generate_cs_contacts(B, A)
+            Contacts, Normal = generate_cs_contacts(B, A)
+            return Contacts, -Normal
 
         case _:
-            pass
+            return None, np.array([], dtype=np.float32)
 
 
 def generate_pc_contacts(
     Plane: P_Object,
     Cube: P_Object,
-) -> list[ContactManifold]:
+) -> tuple[list[tuple[NDArray[np.float32], float]], NDArray[np.float32]]:
     """
     Generate contacts of the plane and the cube
 
@@ -113,28 +353,23 @@ def generate_pc_contacts(
         list[Contact]: a list containing all the contacts
     """
     Normal: NDArray[np.float32] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-    Penetration: float = Plane.Position[1]
-
-    Manifold: ContactManifold = ContactManifold(Plane, Cube, Normal)
-    Deepest = None
+    PlaneHeight: float = Plane.Position[1]
+    Contacts: list[tuple[NDArray[np.float32], float]] = []
 
     for vertex in Cube.XYZVertices:
         VertexWorld: NDArray[np.float32] = Cube.RotationMatrix @ vertex + Cube.Position
-        Dist: float = np.dot(Normal, VertexWorld) - Penetration
+        Dist: float = np.dot(Normal, VertexWorld) - PlaneHeight
 
         if Dist < 0.0:
-            pen: float = -Dist
-            if Deepest is None or pen > Deepest.Penetration:
-                Deepest = Contact(VertexWorld, pen)
+            Penetration: float = -Dist
+            Contacts.append((VertexWorld, Penetration))
 
-    if Deepest is not None:
-        Manifold.Contacts.append(Deepest)
-        return [Manifold]
-    
-    return []
+    return Contacts, Normal
 
 
-def generate_ps_contacts(Plane: P_Object, Sphere: P_Object) -> list[ContactManifold]:
+def generate_ps_contacts(
+    Plane: P_Object, Sphere: P_Object
+) -> tuple[list[tuple[NDArray[np.float32], float]], NDArray[np.float32]]:
     """
     Generate contacts of the plane and the sphere
 
@@ -151,18 +386,17 @@ def generate_ps_contacts(Plane: P_Object, Sphere: P_Object) -> list[ContactManif
     Dist: float = np.dot(Normal, Sphere.Position) - Height
 
     if Dist >= Sphere.Side_Length:
-        return []
+        return [], Normal
 
     Point: NDArray[np.float32] = Sphere.Position - Normal * Sphere.Side_Length  # type: ignore
     Penetration: float = Sphere.Side_Length - Dist
 
-    Manifold: ContactManifold = ContactManifold(Plane, Sphere, Normal)
-    Manifold.Contacts.append(Contact(Point, Penetration))
-
-    return [Manifold]
+    return [(Point, Penetration)], Normal
 
 
-def generate_ss_contacts(SphereA: P_Object, SphereB: P_Object) -> list[ContactManifold]:
+def generate_ss_contacts(
+    SphereA: P_Object, SphereB: P_Object
+) -> tuple[list[tuple[NDArray[np.float32], float]], NDArray[np.float32]]:
     """
     Generate contacts of two spheres
 
@@ -178,25 +412,23 @@ def generate_ss_contacts(SphereA: P_Object, SphereB: P_Object) -> list[ContactMa
 
     RadiusSum: float = SphereA.Side_Length + SphereB.Side_Length
     if Dist >= RadiusSum:
-        return []
+        return [], np.array([], dtype=np.float32)
 
     Normal: NDArray[np.float32] = d / (Dist + 1e-8)
     Point: NDArray[np.float32] = SphereA.Position + Normal * SphereA.Side_Length  # type: ignore
-
     Penetration: float = RadiusSum - Dist  # type: ignore
 
-    Manifold: ContactManifold = ContactManifold(SphereA, SphereB, Normal)  # type: ignore
-    Manifold.Contacts.append(Contact(Point, Penetration))
-
-    return [Manifold]
+    return [(Point, Penetration)], Normal  # type: ignore
 
 
 def generate_cc_contacts(
-    CubeA: P_Object, CubeB: P_Object, Normal: NDArray[np.float32]
-) -> list[ContactManifold]:
-    Normal = normalize(Normal)
+    CubeA: P_Object, CubeB: P_Object
+) -> tuple[list[tuple[NDArray[np.float32], float]], NDArray[np.float32]]:
+    IsColliding, Normal, DepthEPA = the_collision(CubeA, CubeB)
+    if not IsColliding:
+        return [], np.array([], dtype=np.float32)
 
-    if np.dot(CubeB.Position - CubeA.Position, Normal) < 0:
+    if np.dot(Normal, CubeB.Position - CubeA.Position) < 0:
         Normal = -Normal
 
     Na: NDArray[np.float32]
@@ -206,16 +438,16 @@ def generate_cc_contacts(
     Cb: NDArray[np.float32]
     Faceb: list[NDArray[np.float32]]
     Na, Ca, Facea = select_reference_face(CubeA, Normal)
-    Nb, Cb, Faceb = select_reference_face(CubeB, Normal)
+    Nb, Cb, Faceb = select_reference_face(CubeB, -Normal)
 
-    if abs(np.dot(Na, Normal)) > abs(np.dot(Nb, Normal)):
+    if abs(np.dot(Na, Normal)) > abs(np.dot(Nb, -Normal)):
         RefNormal: NDArray[np.float32] = Na
         RefCenter: NDArray[np.float32] = Ca
         RefFace: list[NDArray[np.float32]] = Facea
         IncFace: list[NDArray[np.float32]] = Faceb
 
     else:
-        RefNormal: NDArray[np.float32] = Nb
+        RefNormal: NDArray[np.float32] = -Nb
         RefCenter: NDArray[np.float32] = Cb
         RefFace: list[NDArray[np.float32]] = Faceb
         IncFace: list[NDArray[np.float32]] = Facea
@@ -230,25 +462,25 @@ def generate_cc_contacts(
         PlaneN: NDArray[np.float32] = normalize(np.cross(Edge, RefNormal))
         PlaneD: float = np.dot(PlaneN, a)
 
+        if np.dot(PlaneN, RefCenter) - PlaneD < 0:
+            PlaneN = -PlaneN
+            PlaneD = np.dot(PlaneN, a)
+
         Poly = clip_polygon(Poly, PlaneN, PlaneD)
         if not Poly:
-            return []
+            return [], Normal
 
-    Manifold: ContactManifold = ContactManifold(CubeA, CubeB, Normal)
+    Contacts: list[tuple[NDArray[np.float32], float]] = []
 
     for p in Poly:
-        Depth: float = np.dot(RefNormal, RefCenter - p)
-        Manifold.Contacts.append(Contact(p, Depth))
+        Contacts.append((p, DepthEPA))
 
-    if not Manifold.Contacts:
-        return []
-
-    Manifold.Contacts.sort(key=lambda c: c.Penetration, reverse=True)
-    Manifold.Contacts = [Manifold.Contacts[0]]
-    return [Manifold]
+    return Contacts, Normal
 
 
-def generate_cs_contacts(Cube: P_Object, Sphere: P_Object) -> list[ContactManifold]:
+def generate_cs_contacts(
+    Cube: P_Object, Sphere: P_Object
+) -> tuple[list[tuple[NDArray[np.float32], float]], NDArray[np.float32]]:
     R: NDArray[np.float32] = Cube.RotationMatrix
     PLocal: NDArray[np.float32] = R.T @ (Sphere.Position - Cube.Position)  # type: ignore
 
@@ -259,212 +491,27 @@ def generate_cs_contacts(Cube: P_Object, Sphere: P_Object) -> list[ContactManifo
     Delta: NDArray[np.float32] = Sphere.Position - ClosestWorld
     Dist: float = np.linalg.norm(Delta)  # type: ignore
 
-    if Dist >= Sphere.Side_Length:
-        return []
+    Distances: NDArray[np.float32] = np.array([
+        HalfExtent[0] - abs(PLocal[0]),
+        HalfExtent[1] - abs(PLocal[1]),
+        HalfExtent[2] - abs(PLocal[2]),
+    ], dtype=np.float32)
 
-    if Dist > 1e-6:
-        Normal: NDArray[np.float32] = Delta / Dist
+    MinAxis: int = np.argmin(Distances)  # type: ignore
+    Normal = np.zeros(3, dtype=np.float32)
+    Normal[MinAxis] = 1.0 if PLocal[MinAxis] > 0 else -1.0
 
-    else:
-        d: NDArray[np.float32] = Sphere.Position - Cube.Position
-        if np.linalg.norm(d) > 1e-6:
-            Normal = normalize(d)
+    Normal = normalize(R @ Normal)
 
-        else:
-            Normal = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+    Penetration: float = Sphere.Side_Length + Distances[MinAxis]
+    ContactLocal = PLocal.copy()
+    ContactLocal[MinAxis] = HalfExtent[MinAxis] * Normal[MinAxis]
+    ContactWorld = Cube.Position + R @ ContactLocal
 
-    Penetration: float = Sphere.Side_Length - Dist
-
-    Manifold: ContactManifold = ContactManifold(Cube, Sphere, Normal)
-    Manifold.Contacts.append(Contact(ClosestWorld, Penetration))
-
-    return [Manifold]
+    return [(ContactWorld, Penetration)], Normal  # type: ignore
 
 
-def solve_manifolds(Manifolds: list[ContactManifold], Iterations: int = 8) -> None:
-    for M in Manifolds:
-        A: P_Object = M.ObjectA
-        B: P_Object = M.ObjectB
-        Normal: NDArray[np.float32] = M.Normal
-
-        for C in M.Contacts:
-            C.Ra = C.Point - A.Position
-            C.Rb = C.Point - B.Position
-
-            if C.NormalImpulse > 0.0:
-                Impulse: NDArray[np.float32] = C.NormalImpulse * Normal
-                A.Velocity -= Impulse * A.ReciprocalMass
-                A.AngularVelocity -= A.InvInertiaWorld @ np.cross(C.Ra, Impulse)
-
-                B.Velocity += Impulse * B.ReciprocalMass
-                B.AngularVelocity += B.InvInertiaWorld @ np.cross(C.Rb, Impulse)
-
-    for _ in range(Iterations):
-        for m in Manifolds:
-            solve_manifold(m)
-
-
-def solve_manifold(M: ContactManifold) -> None:  # C here represents one contact
-    A: P_Object = M.ObjectA
-    B: P_Object = M.ObjectB
-
-    Normal: NDArray[np.float32] = M.Normal
-    Contacts: list[Contact] = M.Contacts
-
-    if A.Shape == "Cube" and B.Shape == "Cube":
-        C = M.Contacts[0]
-        Ra = C.Ra
-        Rb = C.Rb
-
-        Va = A.Velocity + np.cross(A.AngularVelocity, Ra)
-        Vb = B.Velocity + np.cross(B.AngularVelocity, Rb)
-
-        Vn = np.dot(Vb - Va, Normal)
-
-        with open("log.txt", "a") as f:
-            print("A.y=", A.Position[1], "B.y=", B.Position[1], file=f)
-            print("Normal=", Normal, file=f)
-            print("Vn=", Vn, file=f)
-
-    if len(Contacts) == 0:
-        return
-
-    if len(Contacts) == 1:
-        C: Contact = Contacts[0]
-        Ra: NDArray[np.float32] = C.Ra  # type: ignore
-        Rb: NDArray[np.float32] = C.Rb  # type: ignore
-
-        Va: NDArray[np.float32] = A.Velocity + np.cross(A.AngularVelocity, Ra)  # type: ignore
-        Vb: NDArray[np.float32] = B.Velocity + np.cross(B.AngularVelocity, Rb)  # type: ignore
-        Vn: np.float32 = np.dot(Vb - Va, Normal)  # type: ignore
-
-        if Vn > 0 and C.Penetration <= 0:
-            return
-
-        k: float = (
-            A.ReciprocalMass
-            + B.ReciprocalMass
-            + np.dot(
-                np.cross(A.InvInertiaWorld @ np.cross(Ra, Normal), Ra)
-                + np.cross(B.InvInertiaWorld @ np.cross(Rb, Normal), Rb),
-                Normal,
-            )
-        )
-
-        if k == 0:
-            return
-
-        Bias: float = 0.0
-        if C.Penetration > SLOP:
-            Bias = BETA * (C.Penetration - SLOP) / DT
-
-        j: float = -(Vn + Bias) / k  # type: ignore
-        Old: float = C.NormalImpulse
-        C.NormalImpulse = max(Old + j, 0.0)
-        Delta_j: float = C.NormalImpulse - Old
-
-        Impulse: NDArray[np.float32] = Delta_j * Normal
-        apply_impulse_point(A, B, Impulse, Ra, Rb)
-
-        return
-
-    K: NDArray[np.float32] = np.zeros((2, 2), dtype=np.float32)
-    Vn: NDArray[np.float32] = np.zeros(2, dtype=np.float32)
-    Bias: NDArray[np.float32] = np.zeros(2, dtype=np.float32)
-    MaxPenetration: float = max(c.Penetration for c in M.Contacts)
-
-    for i in range(2):
-        C_i: Contact = Contacts[i]
-        Ra_i: NDArray[np.float32] = C_i.Ra  # type: ignore
-        Rb_i: NDArray[np.float32] = C_i.Rb  # type: ignore
-
-        V_i: NDArray[np.float32] = (
-            B.Velocity + np.cross(B.AngularVelocity, Rb_i) - A.Velocity - np.cross(A.AngularVelocity, Ra_i)  # type: ignore
-        )
-        Vn[i] = np.dot(V_i, Normal)
-        
-        if C_i.Penetration > SLOP:
-            Bias[i] = BETA * (C_i.Penetration - SLOP) / DT
-
-        for j in range(2):
-            C_j: Contact = Contacts[j]
-            Ra_j: NDArray[np.float32] = C_j.Ra  # type: ignore
-            Rb_j: NDArray[np.float32] = C_j.Rb  # type: ignore
-
-            K[i, j] = (  # type: ignore
-                A.ReciprocalMass
-                + B.ReciprocalMass
-                + np.dot(
-                    np.cross(A.InvInertiaWorld @ np.cross(Ra_i, Normal), Ra_j)
-                    + np.cross(B.InvInertiaWorld @ np.cross(Rb_i, Normal), Rb_j),
-                    Normal,
-                )
-            )
-
-    if Vn[0] > 0.0 and Vn[1] > 0.0 and MaxPenetration <= 0.0:
-        return
-
-    Lambda_Old = np.array(
-        [Contacts[0].NormalImpulse, Contacts[1].NormalImpulse], dtype=np.float32
-    )
-
-    b = Vn + Bias + K @ Lambda_Old
-
-    try:
-        DeltaLambda = np.linalg.solve(K, -b)
-    except np.linalg.LinAlgError:
-        for i in range(2):
-            C_i = Contacts[i]
-            if K[i, i] > 1e-6:
-                j_i = -(Vn[i] + Bias[i]) / K[i, i]
-                Old = C_i.NormalImpulse
-                C_i.NormalImpulse = max(Old + j_i, 0.0)
-                Delta_j = C_i.NormalImpulse - Old
-                apply_impulse_point(A, B, Delta_j * Normal, C_i.Ra, C_i.Rb)  # type: ignore
-        return
-
-    Lambda_New = np.maximum(Lambda_Old + DeltaLambda, 0.0)
-
-    for i in range(2):
-        Delta_j = Lambda_New[i] - Lambda_Old[i]
-        Contacts[i].NormalImpulse = Lambda_New[i]
-        with open("log_solve.txt", "a") as f:
-            print("Normal=", Normal, file=f)
-            print("Impulse=", Delta_j * Normal, file=f)
-            print("A before Vy=", A.Velocity[1], file=f)
-            print("B before Vy=", B.Velocity[1], file=f)
-        apply_impulse_point(A, B, Delta_j * Normal, Contacts[i].Ra, Contacts[i].Rb)  # type: ignore
-
-
-def positional_correction_manifold(
-    M: ContactManifold, slop: float = 0.005, percent: float = 0.9
-) -> None:
-    A: P_Object = M.ObjectA
-    B: P_Object = M.ObjectB
-    if A.Shape == "Cube" and B.Shape == "Cube":
-        return
-    
-    Normal: NDArray[np.float32] = M.Normal
-
-    Penetration: float = max(C.Penetration for C in M.Contacts)
-    Depth: float = max(Penetration - slop, 0.0)
-
-    if Depth <= 0.0:
-        return
-
-    InvMassSum: float = A.ReciprocalMass + B.ReciprocalMass
-    if InvMassSum == 0.0:
-        return
-
-    Correction = percent * Depth / InvMassSum * Normal
-
-    if A.ReciprocalMass > 0.0:
-        A.Position -= Correction * A.ReciprocalMass
-    if B.ReciprocalMass > 0.0:
-        B.Position += Correction * B.ReciprocalMass
-
-
-def apply_impulse_point(
+def _apply_impulse(
     A: P_Object,
     B: P_Object,
     J: NDArray[np.float32],
@@ -478,14 +525,6 @@ def apply_impulse_point(
     if B.ReciprocalMass > 0:
         B.Velocity += J * B.ReciprocalMass
         B.AngularVelocity += B.InvInertiaWorld @ np.cross(Rb, J)
-
-    A.Impulse -= J
-    B.Impulse += J
-
-    if A.Shape == "Cube" and B.Shape == "Cube":
-        with open("log_impulse.txt", "a") as f:
-            print("A after Vy=", A.Velocity[1], file=f)
-            print("B after Vy=", B.Velocity[1], file=f)
 
 
 def select_reference_face(
@@ -513,7 +552,7 @@ def select_reference_face(
         np.array([0.0, 0.0, -1.0], dtype=np.float32),
     ]
 
-    BestDot: float = -1e9
+    BestDot: float = -1.0
     BestFace: NDArray[np.float32] = np.array([], dtype=np.float32)
 
     for ln in LocalNormals:

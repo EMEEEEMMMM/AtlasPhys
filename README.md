@@ -8,8 +8,14 @@ This project is designed as a learning-oriented and research-oriented engine wit
 
 ---
 
-## Release:
+## Usage:
 Precompiled executables for this engine can be found at the [releases page](https://github.com/EMEEEEMMMM/AtlasPhys/releases) for Windows and Linux.
+Or you can just:
+~~~
+git clone https://github.com/EMEEEEMMMM/AtlasPhys.git
+uv sync
+uv run python main.py
+~~~
 
 ---
 
@@ -55,9 +61,10 @@ Each physics step/frame follows this order:
 5. **Constraint Solving**
     - Impulse-based normal resolution
     - Iterative solver
+    - Split impulse formulation no Baumgarte bias in velocity solve
 
 6. **Positional Correction**
-    - Baumgarte-style correction to prevent sinking
+    - Pure position-level correction
 
 ```mermaid
 flowchart TD

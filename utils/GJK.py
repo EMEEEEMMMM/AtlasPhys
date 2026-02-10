@@ -248,21 +248,6 @@ def check_collison(
     Returns:
         bool: whether the two objects collide
     """
-    if not _check_aabb(
-        ObjectA.X_MAX + ObjectA.Position[0],
-        ObjectA.X_MIN + ObjectA.Position[0],
-        ObjectA.Y_MAX + ObjectA.Position[1],
-        ObjectA.Y_MIN + ObjectA.Position[1],
-        ObjectA.Z_MAX + ObjectA.Position[2],
-        ObjectA.Z_MIN + ObjectA.Position[2],
-        ObjectB.X_MAX + ObjectB.Position[0],
-        ObjectB.X_MIN + ObjectB.Position[0],
-        ObjectB.Y_MAX + ObjectB.Position[1],
-        ObjectB.Y_MIN + ObjectB.Position[1],
-        ObjectB.Z_MAX + ObjectB.Position[2],
-        ObjectB.Z_MIN + ObjectB.Position[2],
-    ):
-        return False, []
 
     Direction: NDArray[np.float32] = ObjectB.Position - ObjectA.Position
 
@@ -294,7 +279,7 @@ def check_collison(
     return False, Simplex
 
 
-def _check_aabb(
+def check_aabb(
     X_MAX_A: float,
     X_MIN_A: float,
     Y_MAX_A: float,

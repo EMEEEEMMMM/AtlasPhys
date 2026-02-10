@@ -59,6 +59,8 @@ def the_collision(
         ObjectA (P_Object)
         ObjectB (P_Object)
     """
+    if np.linalg.norm(ObjectA.Velocity - ObjectB.Velocity) < 1e-4:
+        return False, np.zeros(3, dtype=np.float32), 0.0
     IsColliding: bool
     Simplex: list[NDArray[np.float32]]
     IsColliding, Simplex = check_collison(ObjectA, ObjectB)

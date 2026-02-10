@@ -111,23 +111,6 @@ class P_Object:
 
         self._get_aabb()
 
-    def _update_position(
-        self,
-        Velocity: NDArray[np.float32],
-        Position: NDArray[np.float32],
-        Acceleration: NDArray[np.float32],
-        DeltaTime: float,
-    ) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
-        Velocity += Acceleration * DeltaTime
-        Position += Velocity * DeltaTime
-
-        return Velocity, Position
-
-    def update_position(self, DeltaTime: float) -> None:
-        self.Velocity, self.Position = self._update_position(
-            self.Velocity, self.Position, self.Acceleration, DeltaTime
-        )
-
     def get_model_matrix(self) -> NDArray[np.float32]:
         ScaleMatrix: NDArray[np.float32] = MathPhys_utils.scale_matrix(*self.Scale)
         RotationMatrix: NDArray[np.float32] = MathPhys_utils.rotation_matrix(

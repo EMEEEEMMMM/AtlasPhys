@@ -216,19 +216,6 @@ class Events:
         self.window.Gravity_Label.setText(f"Gravity: {value:.2f}")
         GRAVITY[1] = value
 
-    def ma_arrow(self, state) -> None:  # type: ignore
-        if state == 2:
-            self.window.OpenGLWindow.MA_arrow = True
-            print("111")
-        else:
-            self.window.OpenGLWindow.MA_arrow = False
-
-    def impulse_arrow(self, state) -> None:  # type: ignore
-        if state == 2:
-            self.window.OpenGLWindow.Impulse_arrow = True
-
-        else:
-            self.window.OpenGLWindow.Impulse_arrow = False
 
     def delete_object(self) -> None:
         SelectedIndex: Any = self.window.ObjectListView.currentIndex()
