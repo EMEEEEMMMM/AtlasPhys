@@ -119,7 +119,7 @@ def _linear_case(
     The case when the simplex is a straight line (contains two points)
 
     Args:
-        Simplex (NDArray[np.float32]): Simplex = [B, A] A is the lastest
+        Simplex (NDArray[np.float32]): Simplex = [B, A] A is the latest
         Direction (NDArray[np.float32])
 
     Returns:

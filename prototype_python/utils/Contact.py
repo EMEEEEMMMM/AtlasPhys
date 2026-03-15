@@ -6,8 +6,6 @@ from utils.GJK import check_aabb
 from utils.MathPhys_utils import normalize
 from utils.Step import the_collision
 
-DT: float = 0.01
-BAUMGARTE: float = 0.15
 SLOP: float = 0.01
 FRICTION: float = 0.5
 
