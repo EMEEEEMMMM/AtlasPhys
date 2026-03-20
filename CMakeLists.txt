@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(OpenGL REQUIRED)
+find_package(GLEW REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW REQUIRED glfw3)
 
@@ -21,19 +22,25 @@ set(IMGUI_SOURCES
 
 include_directories(
     include
+    src/ShaderProgram
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${GLFW_INCLUDE_DIRS}
+    ${GLEW_INCLUDE_DIRS}
 )
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
-    src/glad.c
+    src/FrameBuffer.cpp
+    src/ShaderProgram/Shader.cpp
+    src/OpenGLLayer.cpp
+    src/ImguiLayer.cpp
     ${IMGUI_SOURCES}
 )
 
 target_link_libraries(${PROJECT_NAME}
     ${GLFW_LIBRARIES}
+    ${GLEW_LIBRARIES}
     OpenGL::GL
     dl
 )
