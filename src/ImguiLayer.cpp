@@ -1,7 +1,9 @@
-#include <GL/glew.h>
+#include <glad/glad.h>
 #include "ImguiLayer.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+
+#include <iostream>
 
 ImGuiLayer::ImGuiLayer(GLFWwindow* window, const char* glslVersion) {
     IMGUI_CHECKVERSION();
@@ -68,6 +70,63 @@ bool ImGuiLayer::RenderViewport(FrameBuffer* framebuffer) {
     }
 
     return resized;
+}
+
+void ImGuiLayer::RenderUI() {
+    ImGui::Begin("Options");
+    if (ImGui::Button("Add Object"))
+    {
+        // TODO
+        std::cout << "Added Object" << std::endl;
+    }
+
+    if (ImGui::Button("Switch projection mode"))
+    {
+        // TODO
+        std::cout << "Swtiched to XXX mode" << std::endl;
+    }
+
+    if (ImGui::Button("Add/Delete Coordinate Axis"))
+    {
+        // TODO
+        std::cout << "Add / Delete Coordinate Axis" << std::endl;
+    }
+    
+    if (ImGui::Button("Add / Delete the plane"))
+    {
+        // TODO
+        std::cout << "Add / Delete the plane" << std::endl;
+    }
+
+    if (ImGui::Button("Start/stop the simulator"))
+    {
+        // TODO
+        std::cout << "Start / stop" << std::endl;
+    }
+
+    if (ImGui::Button("Load / Unload the demo"))
+    {
+        // TODO
+        std::cout << "Loaded / Unloaded the demo" << std::endl;
+    }
+    
+    if (ImGui::Button("Shortcut to add a cube"))
+    {
+        // TODO
+        std::cout << "Added a cube" << std::endl;
+    }
+
+    if (ImGui::Button("Shortcut to add a sphere"))
+    {
+        // TODO
+        std::cout << "Added a sphere" << std::endl;
+    }
+
+    ImGui::Text("Properties");
+
+    static float gravity = 9.800;
+    ImGui::SliderFloat("Gravity", &gravity, 0.0f, 100.0f, "ratio = %.3f");
+    ImGui::End();
 }
 
 void ImGuiLayer::End(GLFWwindow* window) {

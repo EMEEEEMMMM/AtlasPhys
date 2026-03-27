@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <GL/glew.h>
+#include <glad/glad.h>
 
 class Shader {
 public:

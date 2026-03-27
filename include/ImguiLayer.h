@@ -10,7 +10,8 @@ public:
 
     void Begin();
     bool RenderViewport(FrameBuffer* frameBuffer);
+    void RenderUI();
     void End(GLFWwindow* window);
     ImGuiIO& GetIO() const { return ImGui::GetIO(); }
-    bool show_demo_window = true;
+    bool show_demo_window = false;
 };

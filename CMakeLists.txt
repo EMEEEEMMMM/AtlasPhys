@@ -4,11 +4,14 @@ project(AtlasPhys)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(POLICY CMP0072)
+  cmake_policy(SET CMP0072 NEW)
+endif()
 find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW REQUIRED glfw3)
 
+set(GLAD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/glad")
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui")
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
@@ -26,21 +29,22 @@ include_directories(
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${GLFW_INCLUDE_DIRS}
-    ${GLEW_INCLUDE_DIRS}
+    ${GLAD_DIR}/include
 )
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/Application.cpp
     src/FrameBuffer.cpp
     src/ShaderProgram/Shader.cpp
     src/OpenGLLayer.cpp
     src/ImguiLayer.cpp
     ${IMGUI_SOURCES}
+    ${GLAD_DIR}/src/glad.c
 )
 
 target_link_libraries(${PROJECT_NAME}
     ${GLFW_LIBRARIES}
-    ${GLEW_LIBRARIES}
     OpenGL::GL
     dl
 )
