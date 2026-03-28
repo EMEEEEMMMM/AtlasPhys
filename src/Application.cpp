@@ -1,4 +1,4 @@
-#include "Application.h"
+#include "Application.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
 
@@ -44,6 +44,10 @@ bool Application::Init() {
 
     m_OpenGLLayer = std::make_unique<OpenGLLayer>(m_Width, m_Height);
     m_ImGuiLayer = std::make_unique<ImGuiLayer>(m_Window);
+
+    m_ImGuiLayer->SwitchProjection = [this]() {
+        m_OpenGLLayer->ToggleProjectionMode();
+    };
 
     return true;
 }

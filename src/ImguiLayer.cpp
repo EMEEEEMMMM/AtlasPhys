@@ -1,5 +1,5 @@
 #include <glad/glad.h>
-#include "ImguiLayer.h"
+#include "ImguiLayer.hpp"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
@@ -82,8 +82,9 @@ void ImGuiLayer::RenderUI() {
 
     if (ImGui::Button("Switch projection mode"))
     {
-        // TODO
-        std::cout << "Swtiched to XXX mode" << std::endl;
+        if (SwitchProjection) {
+            SwitchProjection();
+        }
     }
 
     if (ImGui::Button("Add/Delete Coordinate Axis"))
