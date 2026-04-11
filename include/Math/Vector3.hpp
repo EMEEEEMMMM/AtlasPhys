@@ -11,7 +11,19 @@ namespace Math {
         Vector3(float x = 0.0f, float y = 0.0f, float z = 0.0f) : x(x), y(y), z(z) {}
 
         inline Vector3 operator+(const Vector3& v) const { return {x + v.x, y + v.y, z + v.z}; }
+        inline Vector3 operator+=(const Vector3& v) {
+            this->x += v.x;
+            this->y += v.y;
+            this->z += v.z;
+            return *this;
+        }
         inline Vector3 operator-(const Vector3& v) const { return {x - v.x, y - v.y, z - v.z}; }
+        inline Vector3 operator-=(const Vector3& v) {
+            this->x -= v.x;
+            this->y -= v.y;
+            this->z -= v.z;
+            return *this;
+        }
         inline Vector3 operator*(float s) const { return {x * s, y * s, z * s}; }
 
         inline float dot(const Vector3& v) const { return x * v.x + y * v.y + z * v.z; }

@@ -74,9 +74,35 @@ struct Matrix4 {
 
         matrix.m[2][0] = t.z * axis.x + s * axis.y;
         matrix.m[2][1] = t.z * axis.y - s * axis.x;
-        matrix.m[2][2] = c + t.z * axis.x;
+        matrix.m[2][2] = c + t.z * axis.z;
 
         return matrix;
+    }
+
+    static Matrix4 LookAt(const Vector3& eye, const Vector3& target, const Vector3& EyeUp) {
+        Vector3 CameraDirection = (target - eye).normalize();
+        Vector3 CameraRight = CameraDirection.cross(EyeUp).normalize();
+        Vector3 CameraUp = CameraRight.cross(CameraDirection);
+
+        Matrix4 ViewMatrix(1.0f);
+        ViewMatrix.m[0][0] = CameraRight.x;
+        ViewMatrix.m[1][0] = CameraRight.y;
+        ViewMatrix.m[2][0] = CameraRight.z;
+
+        ViewMatrix.m[0][1] = CameraUp.x;
+        ViewMatrix.m[1][1] = CameraUp.y;
+        ViewMatrix.m[2][1] = CameraUp.z;
+
+        ViewMatrix.m[0][2] = -CameraDirection.x;
+        ViewMatrix.m[1][2] = -CameraDirection.y;
+        ViewMatrix.m[2][2] = -CameraDirection.z;
+
+        ViewMatrix.m[3][0] = -CameraRight.dot(eye);
+        ViewMatrix.m[3][1] = -CameraUp.dot(eye);
+        ViewMatrix.m[3][2] = CameraDirection.dot(eye);
+        ViewMatrix.m[3][3] = 1.0f;
+
+        return ViewMatrix;
     }
 };
 

@@ -19,6 +19,12 @@ public:
     ImGuiIO& GetIO() const { return ImGui::GetIO(); }
     bool show_demo_window = false;
 
+    bool IsViewportFocused() const { return m_IsViewportFocused; }
+    bool IsViewportHovered() const { return m_IsViewportHovered; }
+
 private:
     bool projection_mode = true;
+    
+    bool m_IsViewportFocused = false;
+    bool m_IsViewportHovered = false;
 };

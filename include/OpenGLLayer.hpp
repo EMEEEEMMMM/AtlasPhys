@@ -6,6 +6,8 @@
 
 #include "FrameBuffer.hpp"
 #include "Shader.h"
+#include "Camera.hpp"
+
 
 enum class ProjectionMode { Perspective, Orthographic };
 
@@ -29,6 +31,8 @@ public:
         
     }
 
+    Camera& GetCamera() { return m_Camera; }
+
 private:
     void InitGeometry();
     GLuint m_VAO = 0;
@@ -38,4 +42,5 @@ private:
     FrameBuffer* m_FrameBuffer = nullptr;
 
     ProjectionMode m_CurrentMode = ProjectionMode::Perspective;
+    Camera m_Camera = Camera(Math::Vector3(0.0f, 0.0f, 3.0f));
 };

@@ -23,4 +23,12 @@ private:
     GLFWwindow* m_Window = nullptr;
     std::unique_ptr<OpenGLLayer> m_OpenGLLayer;
     std::unique_ptr<ImGuiLayer> m_ImGuiLayer;
+
+    float m_DeltaTime = 0.0f;
+    float m_LastFrame = 0.0f;
+
+    float m_LastX = 0.0f;
+    float m_LastY = 0.0f;
+    bool m_FirstMouse = true;
+    bool m_IsCameraActive = false;
 };

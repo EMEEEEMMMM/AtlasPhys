@@ -56,6 +56,52 @@ void Application::MainLoop() {
     while (!glfwWindowShouldClose(m_Window)) {
         glfwPollEvents();
 
+        float currentFrame = glfwGetTime();
+        m_DeltaTime = currentFrame - m_LastFrame;
+        m_LastFrame = currentFrame;
+
+        bool rightMouseDown = glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+
+        if (m_ImGuiLayer->IsViewportFocused() && rightMouseDown) {
+            m_IsCameraActive = true;
+        } else if (!rightMouseDown) {
+            m_IsCameraActive = false;
+            m_FirstMouse = true;
+        }
+
+        if (m_IsCameraActive) {
+            glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            Camera& camera = m_OpenGLLayer->GetCamera();
+
+            if (glfwGetKey(m_Window, GLFW_KEY_W) == GLFW_PRESS) camera.ProcessKeyboard(FORWARD, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_S) == GLFW_PRESS) camera.ProcessKeyboard(BACKWARD, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_A) == GLFW_PRESS) camera.ProcessKeyboard(LEFT, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_D) == GLFW_PRESS) camera.ProcessKeyboard(RIGHT, m_DeltaTime);
+
+            double xpos, ypos;
+            glfwGetCursorPos(m_Window, &xpos, &ypos);
+            if (m_FirstMouse) {
+                m_LastX = (float)xpos;
+                m_LastY = (float)ypos;
+                m_FirstMouse = false;
+            }
+            float xoffset = (float)xpos - m_LastX;
+            float yoffset = m_LastY - (float)ypos;
+            m_LastX = (float)xpos;
+            m_LastY = (float)ypos;
+
+            camera.ProcessMouseMovement(xoffset, yoffset);
+        } else {
+            glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+
+        if (m_ImGuiLayer->IsViewportFocused() && !m_IsCameraActive) {
+            float scrollY = ImGui::GetIO().MouseWheel;
+            if (scrollY != 0.0f) {
+                m_OpenGLLayer->GetCamera().ProcessMouseScroll(scrollY);
+            }
+        }
+
         m_OpenGLLayer->Render();
 
         m_ImGuiLayer->Begin();

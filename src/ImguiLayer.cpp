@@ -58,6 +58,9 @@ bool ImGuiLayer::RenderViewport(FrameBuffer* framebuffer) {
                                 static_cast<uint32_t>(viewPortSize.y));
         }
 
+        m_IsViewportFocused = ImGui::IsWindowFocused();
+        m_IsViewportHovered = ImGui::IsWindowHovered();
+
         uint32_t textureID = framebuffer->GetColorAttachment();
         ImGui::Image(reinterpret_cast<void*>(static_cast<uintptr_t>(textureID)), 
                      viewPortSize, {0, 1}, {1, 0});

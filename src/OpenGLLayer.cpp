@@ -1,6 +1,7 @@
 #include "OpenGLLayer.hpp"
 #include "Math/Vector3.hpp"
 #include "Math/Matrix4.hpp"
+#include "Camera.hpp"
 
 #include <iostream>
 #include <filesystem>
@@ -86,13 +87,13 @@ void OpenGLLayer::Render() {
 	Math::Matrix4 view = Math::Matrix4();
 	Math::Matrix4 projection = Math::Matrix4();
 
-	model = model.Rotate(glfwGetTime(), Math::Vector3(0.0f, 1.0f, 0.0f));
-	view = view.Translate(Math::Vector3(0.0f, 0.0f, -3.0f));
+	model = model.Rotate(0.0f, Math::Vector3(0.0f, 1.0f, 0.0f));
+	view = m_Camera.GetViewMatrix();
 
 	float aspect = (float)m_FrameBuffer->GetWidth() / m_FrameBuffer->GetHeight();
 
 	if (m_CurrentMode == ProjectionMode::Perspective) {
-		projection = Math::Matrix4::Persp(45.0f / 180.0f * M_PI, aspect, 0.1f, 100.0f);
+		projection = Math::Matrix4::Persp(Math::radians(m_Camera.Zoom), aspect, 0.1f, 100.0f);
 	} else {
 		float size = 5.0f;
 		projection = Math::Matrix4::Ortho(-size * aspect, size * aspect, -size, size, 0.1f, 100.0f);
