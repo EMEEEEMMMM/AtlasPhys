@@ -1,5 +1,5 @@
-#ifndef MATH_CONSTANTS_HPP
-#define MATH_CONSTANTS_HPP
+#ifndef MATH_UTILS_HPP
+#define MATH_UTILS_HPP
 
 #include <cmath>
 

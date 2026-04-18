@@ -2,6 +2,7 @@
 #define MATH_VECTOR3_H
 
 #include <cmath>
+#include <iostream>
 
 namespace Math {
     struct Vector3
@@ -36,6 +37,11 @@ namespace Math {
         inline Vector3 normalize() const {
             float len = length();
             return (len > 0.0f) ? *this * (1.0f / len) : Vector3(0, 0, 0);
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const Vector3& v) {
+            os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+            return os;
         }
     };
 }

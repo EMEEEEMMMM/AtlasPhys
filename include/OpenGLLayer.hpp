@@ -3,11 +3,12 @@
 
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #include "FrameBuffer.hpp"
 #include "Shader.h"
 #include "Camera.hpp"
-
+#include "G_Objects.hpp"
 
 enum class ProjectionMode { Perspective, Orthographic };
 
@@ -28,16 +29,19 @@ public:
             m_CurrentMode = ProjectionMode::Perspective;
             std::cout << "Switch to Perspective projection" << std::endl;
         }
-        
     }
 
-    Camera& GetCamera() { return m_Camera; }
+    Camera& GetCamera() { return m_Camera; } 
+
+    void SensitivityChange(float mouseSensitivity) {
+        m_Camera.MouseSensitivity = mouseSensitivity;
+    }
+    
+    static void SetUpGeometry(std::vector<float> vertices, std::vector<uint32_t> indices, GLuint& VAO, GLuint& VBO, GLuint& EBO);
+
+    std::vector<G_Objects::P_Objects> objectslist;
 
 private:
-    void InitGeometry();
-    GLuint m_VAO = 0;
-    GLuint m_VBO = 0;
-    GLuint m_EBO = 0;
     Shader* m_Shader = nullptr;
     FrameBuffer* m_FrameBuffer = nullptr;
 

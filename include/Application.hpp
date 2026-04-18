@@ -30,5 +30,4 @@ private:
     float m_LastX = 0.0f;
     float m_LastY = 0.0f;
     bool m_FirstMouse = true;
-    bool m_IsCameraActive = false;
 };

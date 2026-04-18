@@ -49,6 +49,10 @@ bool Application::Init() {
         m_OpenGLLayer->ToggleProjectionMode();
     };
 
+    m_ImGuiLayer->MouseSensitivityChange = [this](float sensitivity) {
+        m_OpenGLLayer->SensitivityChange(sensitivity);
+    };
+
     return true;
 }
 
@@ -61,51 +65,52 @@ void Application::MainLoop() {
         m_LastFrame = currentFrame;
 
         bool rightMouseDown = glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+        Camera& camera = m_OpenGLLayer->GetCamera();
 
-        if (m_ImGuiLayer->IsViewportFocused() && rightMouseDown) {
-            m_IsCameraActive = true;
-        } else if (!rightMouseDown) {
-            m_IsCameraActive = false;
-            m_FirstMouse = true;
-        }
-
-        if (m_IsCameraActive) {
-            glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            Camera& camera = m_OpenGLLayer->GetCamera();
-
+        if (m_ImGuiLayer->IsViewportFocused()) {
             if (glfwGetKey(m_Window, GLFW_KEY_W) == GLFW_PRESS) camera.ProcessKeyboard(FORWARD, m_DeltaTime);
             if (glfwGetKey(m_Window, GLFW_KEY_S) == GLFW_PRESS) camera.ProcessKeyboard(BACKWARD, m_DeltaTime);
             if (glfwGetKey(m_Window, GLFW_KEY_A) == GLFW_PRESS) camera.ProcessKeyboard(LEFT, m_DeltaTime);
             if (glfwGetKey(m_Window, GLFW_KEY_D) == GLFW_PRESS) camera.ProcessKeyboard(RIGHT, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.ProcessKeyboard(UPWARD, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.ProcessKeyboard(DOWNWARD, m_DeltaTime);
 
-            double xpos, ypos;
-            glfwGetCursorPos(m_Window, &xpos, &ypos);
-            if (m_FirstMouse) {
+            if (rightMouseDown) {
+                glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            
+                if (m_FirstMouse) {
+                    double xpos, ypos;
+                    glfwGetCursorPos(m_Window, &xpos, &ypos);
+                    
+                    m_LastX = (float)xpos;
+                    m_LastY = (float)ypos;
+                    m_FirstMouse = false;
+                }
+                    
+                double xpos, ypos;
+                glfwGetCursorPos(m_Window, &xpos, &ypos);
+
+                float xoffset = (float)xpos - m_LastX;
+                float yoffset = m_LastY - (float)ypos;
                 m_LastX = (float)xpos;
                 m_LastY = (float)ypos;
-                m_FirstMouse = false;
-            }
-            float xoffset = (float)xpos - m_LastX;
-            float yoffset = m_LastY - (float)ypos;
-            m_LastX = (float)xpos;
-            m_LastY = (float)ypos;
 
-            camera.ProcessMouseMovement(xoffset, yoffset);
-        } else {
-            glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        }
-
-        if (m_ImGuiLayer->IsViewportFocused() && !m_IsCameraActive) {
-            float scrollY = ImGui::GetIO().MouseWheel;
-            if (scrollY != 0.0f) {
-                m_OpenGLLayer->GetCamera().ProcessMouseScroll(scrollY);
+                camera.ProcessMouseMovement(xoffset, yoffset);
+            } else {
+                glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                m_FirstMouse = true;
             }
         }
 
         m_OpenGLLayer->Render();
 
         m_ImGuiLayer->Begin();
-
+        if (m_ImGuiLayer->IsViewportFocused()) {
+            float scrollY = ImGui::GetIO().MouseWheel;
+            if (scrollY != 0.0f) {
+                m_OpenGLLayer->GetCamera().ProcessMouseScroll(scrollY);
+            }
+        }
         if (m_ImGuiLayer->RenderViewport(m_OpenGLLayer->GetFrameBuffer())) {
             auto fb = m_OpenGLLayer->GetFrameBuffer();
             glViewport(0, 0, fb->GetWidth(), fb->GetHeight());

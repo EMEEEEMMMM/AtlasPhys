@@ -15,6 +15,7 @@ public:
     void End(GLFWwindow* window);
 
     std::function<void()> SwitchProjection;
+    std::function<void(float)> MouseSensitivityChange;
 
     ImGuiIO& GetIO() const { return ImGui::GetIO(); }
     bool show_demo_window = false;

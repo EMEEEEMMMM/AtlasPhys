@@ -2,7 +2,7 @@
 #define CAMERA_H
 
 #include <glad/glad.h>
-#include <Math/Constants.hpp>
+#include <Math/Utils.hpp>
 #include <Math/Vector3.hpp>
 #include <Math/Matrix4.hpp>
 
@@ -11,13 +11,16 @@ enum Camera_Movement {
     BACKWARD,
     LEFT,
     RIGHT,
+    UPWARD,
+    DOWNWARD,
 };
 
 const float YAW = -90.0f;
 const float PITCH = 0.0f;
 const float SPEED = 2.5f;
-const float SENSITIVITY = 0.1f;
 const float ZOOM = 45.0f;
+
+static float SENSITIVITY = 0.1f;
 
 class Camera {
 public:
@@ -64,6 +67,10 @@ public:
             Position -= Right * velocity;
         if (direction == RIGHT)
             Position += Right * velocity;
+        if (direction == UPWARD)
+            Position += Up * velocity;
+        if (direction == DOWNWARD)
+            Position -= Up * velocity;
     }
 
     void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true) {
