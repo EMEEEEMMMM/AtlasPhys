@@ -46,10 +46,10 @@ struct Matrix4 {
         float v30, float v31, float v32, float v33
     ) {
         std::memset(m, 0, sizeof(m));
-        m[0][0] = v00; m[0][1] = v01; m[0][2] = v02; m[0][3] = v03;
-        m[1][0] = v10; m[1][1] = v11; m[1][2] = v12; m[1][3] = v13;
-        m[2][0] = v20; m[2][1] = v21; m[2][2] = v22; m[2][3] = v23;
-        m[3][0] = v30; m[3][1] = v31; m[3][2] = v32; m[3][3] = v33;
+        m[0][0] = v00; m[1][0] = v01; m[2][0] = v02; m[3][0] = v03;
+        m[0][1] = v10; m[1][1] = v11; m[2][1] = v12; m[3][1] = v13;
+        m[0][2] = v20; m[1][2] = v21; m[2][2] = v22; m[3][2] = v23;
+        m[0][3] = v30; m[1][3] = v31; m[2][3] = v32; m[3][3] = v33;
     }
 
     inline Matrix4 operator*(const Matrix4& matrix) const {
@@ -104,28 +104,6 @@ struct Matrix4 {
         return matrix;
     }
 
-    static Matrix4 Rotate(float angleRad, Vector3 axis) {
-        Matrix4 matrix;
-        float c = cos(angleRad);
-        float s = sin(angleRad);
-        axis = axis.normalize();
-        Vector3 t = axis * (1.0f - c);
-
-        matrix.m[0][0] = c + t.x * axis.x;
-        matrix.m[0][1] = t.x * axis.y + s * axis.z;
-        matrix.m[0][2] = t.x * axis.z - s * axis.y;
-
-        matrix.m[1][0] = t.y * axis.x - s * axis.z;
-        matrix.m[1][1] = c + t.y * axis.y;
-        matrix.m[1][2] = t.y * axis.z + s * axis.x;
-
-        matrix.m[2][0] = t.z * axis.x + s * axis.y;
-        matrix.m[2][1] = t.z * axis.y - s * axis.x;
-        matrix.m[2][2] = c + t.z * axis.z;
-
-        return matrix;
-    }
-
     static Matrix4 LookAt(const Vector3& eye, const Vector3& target, const Vector3& EyeUp) {
         Vector3 CameraDirection = (target - eye).normalize();
         Vector3 CameraRight = CameraDirection.cross(EyeUp).normalize();
@@ -170,15 +148,6 @@ struct Matrix4 {
             -sin_y, cos_y * sin_x, cos_x * cos_y, 0.0f,
             0.0f, 0.0f, 0.0f, 1.0f
         );
-    }
-
-    static Matrix4 TranslationMatrix(Math::Vector3& position) {
-        Matrix4 TMatrix(1.0f);
-        TMatrix.m[0][3] = position.x;
-        TMatrix.m[1][3] = position.y;
-        TMatrix.m[2][3] = position.z;
-
-        return TMatrix;
     }
 };
 

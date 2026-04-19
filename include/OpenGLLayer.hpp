@@ -39,11 +39,13 @@ public:
     
     static void SetUpGeometry(std::vector<float> vertices, std::vector<uint32_t> indices, GLuint& VAO, GLuint& VBO, GLuint& EBO);
 
-    std::vector<G_Objects::P_Objects> objectslist;
 
 private:
     Shader* m_Shader = nullptr;
     FrameBuffer* m_FrameBuffer = nullptr;
+
+    float deltaTime = 0.0f;
+    float lastFrame = 0.0f;
 
     ProjectionMode m_CurrentMode = ProjectionMode::Perspective;
     Camera m_Camera = Camera(Math::Vector3(0.0f, 0.0f, 3.0f));

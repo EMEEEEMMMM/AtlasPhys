@@ -3,6 +3,7 @@
 #include "Math/Matrix4.hpp"
 #include "Camera.hpp"
 #include "G_Objects.hpp"
+#include "Step.hpp"
 
 #include <iostream>
 #include <filesystem>
@@ -61,6 +62,12 @@ void OpenGLLayer::Render() {
 
 	m_Shader->Bind();
 
+	float currentTime = glfwGetTime();
+	deltaTime = currentTime - lastFrame;
+	lastFrame = currentTime;
+
+	std::cout << deltaTime << std::endl;
+
 	Math::Matrix4 view = m_Camera.GetViewMatrix();
 	Math::Matrix4 projection = Math::Matrix4();
 	float aspect = (float)m_FrameBuffer->GetWidth() / m_FrameBuffer->GetHeight();
@@ -79,6 +86,8 @@ void OpenGLLayer::Render() {
 	glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
 
 	unsigned int modelLoc = glGetUniformLocation(m_Shader->m_RendererID, "model");
+
+	Step::integrator(G_Objects::g_Objects, deltaTime);
 
 	for (G_Objects::P_Objects obj: G_Objects::g_Objects) {
 		Math::Matrix4 model = obj.get_model_matrix();

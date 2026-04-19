@@ -23,7 +23,7 @@ namespace G_Objects {
 
         Math::Vector3 position;
         Math::Vector3 velocity = Math::Vector3();
-        Math::Vector3 acceleration = Math::Vector3();
+        Math::Vector3 acceleration = Math::Vector3(0.0f, Math::GRAVITY, 0.0f);
         Math::Vector3 scale = Math::Vector3(1.0f, 1.0f, 1.0f);
         Math::Vector3 rotation = Math::Vector3();
         // RotationMatrix
@@ -49,12 +49,14 @@ namespace G_Objects {
             this->VAO = 0;
             this->VBO = 0;
             this->EBO = 0;
+
+            this->acceleration = Math::Vector3(0.0f, Math::GRAVITY, 0.0f);
         }
 
         Math::Matrix4 get_model_matrix() {
             Math::Matrix4 scaleMatrix = Math::Matrix4(scale.x, scale.y, scale.z, 1.0);
             Math::Matrix4 rotationMatrix = Math::Matrix4::RotationMatrix(rotation);
-            Math::Matrix4 translationMatrix = Math::Matrix4::TranslationMatrix(position);
+            Math::Matrix4 translationMatrix = Math::Matrix4::Translate(position);
 
             return translationMatrix * rotationMatrix * scaleMatrix;
         }
