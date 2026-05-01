@@ -5,6 +5,7 @@
 
 #include <glad/glad.h>
 #include <vector>
+#include <memory>
 
 namespace G_Objects {
     struct P_Objects {
@@ -12,8 +13,6 @@ namespace G_Objects {
         float color[4];
         float mass;
         float restitution;
-
-        bool collidable;
 
         int GL_Type;
         std::vector<float> vertices;
@@ -23,11 +22,29 @@ namespace G_Objects {
 
         Math::Vector3 position;
         Math::Vector3 velocity = Math::Vector3();
-        Math::Vector3 acceleration = Math::Vector3(0.0f, Math::GRAVITY, 0.0f);
+        Math::Vector3 acceleration = Math::Vector3();
         Math::Vector3 scale = Math::Vector3(1.0f, 1.0f, 1.0f);
         Math::Vector3 rotation = Math::Vector3();
         // RotationMatrix
         Math::Vector3 angularVelocity = Math::Vector3();
+
+        P_Objects()
+            : sideLength(0.0f),
+            position(Math::Vector3()),
+            mass(0.0f),
+            restitution(0.0f),
+            GL_Type(0),
+            vertices{},
+            indices{},
+            VAO(0), VBO(0), EBO(0),
+            lenIndices(0),
+            scale(Math::Vector3(1.0f, 1.0f, 1.0f)),
+            rotation(Math::Vector3()),
+            angularVelocity(Math::Vector3()),
+            acceleration(Math::Vector3(0.0f, Math::GRAVITY, 0.0f))
+        {
+            color[0] = 1.0f; color[1] = 1.0f; color[2] = 1.0f; color[3] = 1.0f;
+        }
 
         P_Objects(float sideLength, Math::Vector3 position,
                 float mass, float restitution, float color[4], int GL_Type, 
@@ -39,7 +56,6 @@ namespace G_Objects {
             GL_Type(GL_Type),
             vertices(vertices),
             indices(indices) {
-            this->collidable = true;
             this->lenIndices = indices.size();
 
             for (int i = 0; i < 4; i++) {
@@ -62,7 +78,11 @@ namespace G_Objects {
         }
     };
 
-    extern std::vector<P_Objects> g_Objects;
+    extern std::vector<std::shared_ptr<P_Objects>> g_Objects;
+    extern std::vector<std::weak_ptr<P_Objects>> d_Objects;
+
+    extern P_Objects g_Axis;
+    extern P_Objects g_Plane;
 
     void add_cube(float sideLength, Math::Vector3 position,
                 float mass, float restitution, float color[4]);

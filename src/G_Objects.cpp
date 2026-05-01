@@ -4,10 +4,16 @@
 
 #include <vector>
 #include <cmath>
+#include <memory>
+#include <algorithm>
 
 namespace G_Objects {
     
-    std::vector<P_Objects> g_Objects;
+    std::vector<std::shared_ptr<P_Objects>> g_Objects;
+    std::vector<std::weak_ptr<P_Objects>> d_Objects;
+
+    P_Objects g_Axis;
+    P_Objects g_Plane;
 
     void add_cube(
         float sideLength, Math::Vector3 position,
@@ -31,9 +37,10 @@ namespace G_Objects {
             4, 0, 3, 4, 3, 7
         };
 
-        P_Objects cube(sideLength, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
-        OpenGLLayer::SetUpGeometry(vertices, indices, cube.VAO, cube.VBO, cube.EBO);
-        g_Objects.push_back(cube);        
+        auto cube = std::make_shared<P_Objects>(sideLength, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+        OpenGLLayer::SetUpGeometry(vertices, indices, cube->VAO, cube->VBO, cube->EBO);
+        g_Objects.push_back(cube);
+        d_Objects.push_back(cube);   
     }
 
     void add_sphere(
@@ -107,8 +114,9 @@ namespace G_Objects {
             }
         }
 
-        P_Objects sphere(sideLength, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
-        OpenGLLayer::SetUpGeometry(vertices, indices, sphere.VAO, sphere.VBO, sphere.EBO);
+        auto sphere = std::make_shared<P_Objects>(sideLength, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+        OpenGLLayer::SetUpGeometry(vertices, indices, sphere->VAO, sphere->VBO, sphere->EBO);
         g_Objects.push_back(sphere);
+        d_Objects.push_back(sphere);
     }
 }

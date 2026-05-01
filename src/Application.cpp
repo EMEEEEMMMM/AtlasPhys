@@ -49,9 +49,25 @@ bool Application::Init() {
         m_OpenGLLayer->ToggleProjectionMode();
     };
 
+    m_ImGuiLayer->AddOrDeleteCoordinateAxis = [this]() {
+        m_OpenGLLayer->CoordinateAxisDraw();
+    };
+
+    m_ImGuiLayer->AddOrDeletePlane = [this]() {
+        m_OpenGLLayer->PlaneDraw();
+    };
+    
     m_ImGuiLayer->MouseSensitivityChange = [this](float sensitivity) {
         m_OpenGLLayer->SensitivityChange(sensitivity);
     };
+
+    m_ImGuiLayer->GravityChange = [this](float gravity) {
+        m_OpenGLLayer->GravityChange(gravity);
+    };
+
+    m_ImGuiLayer->SetOpenGLLayer(m_OpenGLLayer.get());
+
+    // m_OpenGLLayer->DrawPlane();
 
     return true;
 }

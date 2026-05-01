@@ -40,6 +40,7 @@ add_executable(${PROJECT_NAME}
     src/OpenGLLayer.cpp
     src/ImguiLayer.cpp
     src/G_Objects.cpp
+    src/Utils.cpp
     ${IMGUI_SOURCES}
     ${GLAD_DIR}/src/glad.c
 )

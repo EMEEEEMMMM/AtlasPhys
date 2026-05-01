@@ -6,6 +6,7 @@
 
 #include <Math/Vector3.hpp>
 #include "G_Objects.hpp"
+#include "OpenGLLayer.hpp"
 
 #include <iostream>
 
@@ -18,6 +19,8 @@ ImGuiLayer::ImGuiLayer(GLFWwindow* window, const char* glslVersion) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+    io.IniFilename = nullptr;
 
     ImGui::StyleColorsDark();
 
@@ -42,13 +45,57 @@ void ImGuiLayer::Begin() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGuiWindowFlags rootFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    rootFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    rootFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+    ImGui::Begin("DockSpaceRoot", nullptr, rootFlags);
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(2);
+
+    ImGuiID dockspaceId = ImGui::GetID("CustomDockSpace");
+    ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+
+    static bool isFirstInit = true;
+
+    if (isFirstInit) {
+        isFirstInit = false;
+
+        ImGui::DockBuilderRemoveNode(dockspaceId);
+        ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+        ImGui::DockBuilderSetNodeSize(dockspaceId, viewport->WorkSize);
+
+        ImGuiID mainNode = dockspaceId;
+        ImGuiID leftNode, midNode, rightNode;
+        ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Left, 0.2, &leftNode, &midNode);
+        ImGui::DockBuilderSplitNode(midNode, ImGuiDir_Right, 0.25f, &rightNode, &midNode);
+
+        ImGuiID topRight, bottomRight;
+        ImGui::DockBuilderSplitNode(rightNode, ImGuiDir_Down, 0.5f, &bottomRight, &topRight);
+
+        ImGui::DockBuilderDockWindow("Options", leftNode);
+        ImGui::DockBuilderDockWindow("Viewport", midNode);
+        ImGui::DockBuilderDockWindow("Dynamic Objects", topRight);
+        ImGui::DockBuilderDockWindow("Object View", bottomRight);
+
+        ImGui::DockBuilderFinish(dockspaceId);
+    }
+
+    ImGui::End();
 }
 
 bool ImGuiLayer::RenderViewport(FrameBuffer* framebuffer) {
     bool resized = false;
 
-    ImGui::Begin("ViewPort");
+    ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoCollapse);
     {
         ImVec2 viewPortSize = ImGui::GetContentRegionAvail();
         
@@ -80,7 +127,7 @@ bool ImGuiLayer::RenderViewport(FrameBuffer* framebuffer) {
 }
 
 void ImGuiLayer::RenderUI() {
-    ImGui::Begin("Options");
+    ImGui::Begin("Options", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
     if (ImGui::Button("Add Object"))
     {
         ImGui::OpenPopup("AddObjects");
@@ -135,14 +182,16 @@ void ImGuiLayer::RenderUI() {
 
     if (ImGui::Button("Add/Delete Coordinate Axis"))
     {
-        // TODO
-        std::cout << "Add / Delete Coordinate Axis" << std::endl;
+        if (AddOrDeleteCoordinateAxis) {
+            AddOrDeleteCoordinateAxis();
+        }
     }
     
     if (ImGui::Button("Add / Delete the plane"))
     {
-        // TODO
-        std::cout << "Add / Delete the plane" << std::endl;
+        if (AddOrDeletePlane) {
+            AddOrDeletePlane();
+        }
     }
 
     if (ImGui::Button("Start/stop the simulator"))
@@ -169,10 +218,19 @@ void ImGuiLayer::RenderUI() {
         std::cout << "Added a sphere" << std::endl;
     }
 
+    if (ImGui::Button("Show d_Objects")) 
+    {
+        show_dobject_window = !show_dobject_window;
+    }
+
     ImGui::Text("Properties");
 
-    static float gravity = 9.800;
-    ImGui::SliderFloat("Gravity", &gravity, 0.0f, 100.0f, "ratio = %.3f");
+    static float gravity = -9.800;
+    if (ImGui::SliderFloat("Gravity", &gravity, -100.0f, 0.0f, "ratio = %.3f")) {
+        if (GravityChange) {
+            GravityChange(gravity);
+        }
+    };
 
     static float mouseSensitivity = 1.0f;
     if (ImGui::SliderFloat("Mouse sensitivity", &mouseSensitivity, 1.0f, 2.0f, "ratio = %.4f")) {
@@ -182,6 +240,124 @@ void ImGuiLayer::RenderUI() {
     }
 
     ImGui::End();
+
+    if (show_dobject_window)
+    {
+        ImGuiWindowFlags dObjFlags = ImGuiWindowFlags_NoMove
+                                | ImGuiWindowFlags_NoResize
+                                | ImGuiWindowFlags_NoCollapse;
+        ImGui::Begin("Dynamic Objects", &show_dobject_window, dObjFlags);
+
+        int idx = 0;
+        for (auto it = G_Objects::d_Objects.begin(); it != G_Objects::d_Objects.end(); )
+        {
+            if (auto obj = it->lock())
+            {
+                ImGui::PushID(idx);
+                bool selected = (selected_dobject == idx);
+                if (ImGui::Selectable(("Object " + std::to_string(idx)).c_str(), selected))
+                    selected_dobject = idx;
+
+                ImGui::SameLine();
+                if (ImGui::Button("Delete"))
+                {
+                    G_Objects::g_Objects.erase(
+                        std::remove_if(G_Objects::g_Objects.begin(),
+                                    G_Objects::g_Objects.end(),
+                                    [&](const std::shared_ptr<G_Objects::P_Objects>& p){ return p == obj; }),
+                        G_Objects::g_Objects.end());
+
+                    it = G_Objects::d_Objects.erase(it);
+                    if (selected_dobject == idx) selected_dobject = -1;
+                    ImGui::PopID();
+                    continue;
+                }
+
+                if (selected)
+                {
+                    ImGui::Indent();
+                    ImGui::Text("Pos: (%.2f, %.2f, %.2f)",
+                            obj->position.x, obj->position.y, obj->position.z);
+                    ImGui::Text("Velocity: (%.2f, %.2f, %.2f)", 
+                            obj->velocity.x, obj->velocity.y, obj->velocity.z);
+                    ImGui::Text("Acceleration: (%.2f, %.2f, %.2f)",
+                            obj->acceleration.x, obj->acceleration.y, obj->acceleration.z);
+                    ImGui::Text("Mass: %.2f", obj->mass);
+                    ImGui::Unindent();
+                }
+
+                ImGui::PopID();
+                ++it;
+            }
+            else
+            {
+                it = G_Objects::d_Objects.erase(it);
+            }
+            ++idx;
+        }
+
+        ImGui::End();
+
+        ImGui::Begin("Object View", nullptr,
+                    ImGuiWindowFlags_NoMove |
+                    ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_NoCollapse);
+
+        if (selected_dobject < 0) {
+            ImGui::Text("Select an object");
+        } else {
+            std::shared_ptr<G_Objects::P_Objects> selObj;
+            int idx = 0;
+            for (auto& wk : G_Objects::d_Objects) {
+                if (auto o = wk.lock()) {
+                    if (idx == selected_dobject) { selObj = o; break; }
+                }
+                ++idx;
+            }
+
+            if (selObj) {
+                ImVec2 avail = ImGui::GetContentRegionAvail();
+                if (avail.x > 0 && avail.y > 0) {
+                    if (!m_ObjectViewFB) {
+                        m_ObjectViewFB = new FrameBuffer((uint32_t)avail.x,
+                                                        (uint32_t)avail.y);
+                    } else if ((uint32_t)avail.x != m_ObjectViewFB->GetWidth() ||
+                            (uint32_t)avail.y != m_ObjectViewFB->GetHeight()) {
+                        m_ObjectViewFB->Resize((uint32_t)avail.x,
+                                            (uint32_t)avail.y);
+                    }
+
+                    Math::Vector3 target = selObj->position;
+                    Math::Vector3 eye = target + Math::Vector3(2.0f, 2.0f, 5.0f);
+                    Math::Matrix4 view   = Math::Matrix4::LookAt(eye, target,
+                                                                Math::Vector3(0.0f,1.0f,0.0f));
+
+                    float aspect = (float)m_ObjectViewFB->GetWidth() /
+                                m_ObjectViewFB->GetHeight();
+                    Math::Matrix4 proj;
+                    if (m_OpenGLLayer->GetProjectionMode() ==
+                        ProjectionMode::Perspective) {
+                        proj = Math::Matrix4::Persp(
+                            Math::radians(m_OpenGLLayer->GetCamera().Zoom),
+                            aspect, 0.1f, 100.0f);
+                    } else {
+                        float size = 5.0f;
+                        proj = Math::Matrix4::Ortho(-size*aspect, size*aspect,
+                                                    -size, size, 0.1f, 100.0f);
+                    }
+
+                    m_OpenGLLayer->RenderWithCustomView(m_ObjectViewFB, view, proj);
+
+                    uint32_t tex = m_ObjectViewFB->GetColorAttachment();
+                    ImGui::Image(reinterpret_cast<void*>(static_cast<uintptr_t>(tex)),
+                                avail, ImVec2(0,1), ImVec2(1,0));
+                }
+            } else {
+                ImGui::Text("Select an object");
+            }
+        }
+        ImGui::End();
+    }
 }
 
 void ImGuiLayer::End(GLFWwindow* window) {
