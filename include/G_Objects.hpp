@@ -88,4 +88,17 @@ namespace G_Objects {
                 float mass, float restitution, float color[4]);
     void add_sphere(float sideLength, Math::Vector3 position,
                 float mass, float restitution, float color[4]);
+    void add_rectangular_prism(float width, float height, float depth, Math::Vector3 position, 
+                float mass, float restitution, float color[4]);
+    void add_tetrahedron(float radius, Math::Vector3 position, 
+                float mass, float restitution, float color[4]);
+    void add_square_pyramid(float base_radius, float height, Math::Vector3 position,
+                float mass, float restitution, float color[4]);
+    void add_pentagonal_pyramid(float base_radius, float height, Math::Vector3 position,
+                float mass, float restitution, float color[4]);
+    void add_hexagonal_pyramid(float base_radius, float height, Math::Vector3 position,
+                float mass, float restitution, float color[4]);
+    void add_regular_octahedron(float radius, Math::Vector3 position,
+                float mass, float restitution, float color[4]);
+
 }

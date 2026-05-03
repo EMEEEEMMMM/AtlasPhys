@@ -1,14 +1,13 @@
 #include "Application.hpp"
+
 #include <iostream>
 #include <GLFW/glfw3.h>
-
+#include <glad/glad.h>
 
 Application::Application(int width, int height, const char* title)
     : m_Width(width), m_Height(height), m_Title(title) {}
 
-Application::~Application() {
-    CleanUp();
-}
+Application::~Application() { CleanUp(); }
 
 bool Application::Init() {
     if (!glfwInit()) {
@@ -25,7 +24,8 @@ bool Application::Init() {
     //     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     // #endif
 
-    m_Window = glfwCreateWindow(m_Width, m_Height, m_Title.c_str(), nullptr, nullptr);
+    m_Window =
+        glfwCreateWindow(m_Width, m_Height, m_Title.c_str(), nullptr, nullptr);
     if (!m_Window) {
         std::cerr << "Failed to create GLFW window\n";
         glfwTerminate();
@@ -53,10 +53,8 @@ bool Application::Init() {
         m_OpenGLLayer->CoordinateAxisDraw();
     };
 
-    m_ImGuiLayer->AddOrDeletePlane = [this]() {
-        m_OpenGLLayer->PlaneDraw();
-    };
-    
+    m_ImGuiLayer->AddOrDeletePlane = [this]() { m_OpenGLLayer->PlaneDraw(); };
+
     m_ImGuiLayer->MouseSensitivityChange = [this](float sensitivity) {
         m_OpenGLLayer->SensitivityChange(sensitivity);
     };
@@ -80,29 +78,36 @@ void Application::MainLoop() {
         m_DeltaTime = currentFrame - m_LastFrame;
         m_LastFrame = currentFrame;
 
-        bool rightMouseDown = glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+        bool rightMouseDown =
+            glfwGetMouseButton(m_Window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
         Camera& camera = m_OpenGLLayer->GetCamera();
 
         if (m_ImGuiLayer->IsViewportFocused()) {
-            if (glfwGetKey(m_Window, GLFW_KEY_W) == GLFW_PRESS) camera.ProcessKeyboard(FORWARD, m_DeltaTime);
-            if (glfwGetKey(m_Window, GLFW_KEY_S) == GLFW_PRESS) camera.ProcessKeyboard(BACKWARD, m_DeltaTime);
-            if (glfwGetKey(m_Window, GLFW_KEY_A) == GLFW_PRESS) camera.ProcessKeyboard(LEFT, m_DeltaTime);
-            if (glfwGetKey(m_Window, GLFW_KEY_D) == GLFW_PRESS) camera.ProcessKeyboard(RIGHT, m_DeltaTime);
-            if (glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.ProcessKeyboard(UPWARD, m_DeltaTime);
-            if (glfwGetKey(m_Window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.ProcessKeyboard(DOWNWARD, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_W) == GLFW_PRESS)
+                camera.ProcessKeyboard(FORWARD, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_S) == GLFW_PRESS)
+                camera.ProcessKeyboard(BACKWARD, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_A) == GLFW_PRESS)
+                camera.ProcessKeyboard(LEFT, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_D) == GLFW_PRESS)
+                camera.ProcessKeyboard(RIGHT, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_SPACE) == GLFW_PRESS)
+                camera.ProcessKeyboard(UPWARD, m_DeltaTime);
+            if (glfwGetKey(m_Window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+                camera.ProcessKeyboard(DOWNWARD, m_DeltaTime);
 
             if (rightMouseDown) {
                 glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            
+
                 if (m_FirstMouse) {
                     double xpos, ypos;
                     glfwGetCursorPos(m_Window, &xpos, &ypos);
-                    
+
                     m_LastX = (float)xpos;
                     m_LastY = (float)ypos;
                     m_FirstMouse = false;
                 }
-                    
+
                 double xpos, ypos;
                 glfwGetCursorPos(m_Window, &xpos, &ypos);
 

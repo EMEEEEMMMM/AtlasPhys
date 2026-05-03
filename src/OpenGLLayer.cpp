@@ -179,7 +179,6 @@ void OpenGLLayer::RenderWithCustomView(FrameBuffer* fb, const Math::Matrix4& vie
 
 	m_Shader->Bind();
 
-	// 传入自定义 view / projection
 	glUniformMatrix4fv(glGetUniformLocation(m_Shader->m_RendererID, "view"),
 					1, GL_FALSE, &view.m[0][0]);
 	glUniformMatrix4fv(glGetUniformLocation(m_Shader->m_RendererID, "projection"),
@@ -187,10 +186,8 @@ void OpenGLLayer::RenderWithCustomView(FrameBuffer* fb, const Math::Matrix4& vie
 
 	unsigned int modelLoc = glGetUniformLocation(m_Shader->m_RendererID, "model");
 
-	// 与主 Render() 相同的物理积分（保持同步）
 	Step::integrator(G_Objects::d_Objects, deltaTime);
 
-	// 渲染全部对象（与主视口相同）
 	for (const auto& objPtr : G_Objects::g_Objects) {
 		Math::Matrix4 model = objPtr->get_model_matrix();
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &model.m[0][0]);

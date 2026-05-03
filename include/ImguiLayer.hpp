@@ -1,13 +1,16 @@
 #pragma once
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-#include "imgui.h"
-#include "FrameBuffer.hpp"
+
 #include <functional>
+
+#include "FrameBuffer.hpp"
+#include "imgui.h"
 
 class OpenGLLayer;
 
 class ImGuiLayer {
-public:
+   public:
     ImGuiLayer(GLFWwindow* window, const char* glslVersion = "#version 130");
     ~ImGuiLayer();
 
@@ -30,9 +33,9 @@ public:
 
     void SetOpenGLLayer(OpenGLLayer* layer) { m_OpenGLLayer = layer; }
 
-private:
+   private:
     bool projection_mode = true;
-    
+
     bool m_IsViewportFocused = false;
     bool m_IsViewportHovered = false;
 
