@@ -149,6 +149,22 @@ struct Matrix4 {
             0.0f, 0.0f, 0.0f, 1.0f
         );
     }
+
+    inline Vector3 operator*(const Vector3& v) const {
+        return Vector3(
+            m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0],
+            m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1],
+            m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2]  
+        );
+    }
+
+    inline Vector3 TransformVector(const Vector3& v) const {
+        return Vector3(
+            m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z,
+            m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z,
+            m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z 
+        );
+    }
 };
 
 }

@@ -19,14 +19,14 @@ namespace G_Objects {
         float sideLength, Math::Vector3 position,
         float mass, float restitution, float color[4]) {
             std::vector<float> vertices = {
-                position.x - (sideLength / 2), position.y + (sideLength / 2), position.z + (sideLength / 2), color[0], color[1], color[2], color[3],
-                position.x + (sideLength / 2), position.y + (sideLength / 2), position.z + (sideLength / 2), color[0], color[1], color[2], color[3],
-                position.x + (sideLength / 2), position.y - (sideLength / 2), position.z + (sideLength / 2), color[0], color[1], color[2], color[3],
-                position.x - (sideLength / 2), position.y - (sideLength / 2), position.z + (sideLength / 2), color[0], color[1], color[2], color[3],
-                position.x - (sideLength / 2), position.y + (sideLength / 2), position.z - (sideLength / 2), color[0], color[1], color[2], color[3],
-                position.x + (sideLength / 2), position.y + (sideLength / 2), position.z - (sideLength / 2), color[0], color[1], color[2], color[3],
-                position.x + (sideLength / 2), position.y - (sideLength / 2), position.z - (sideLength / 2), color[0], color[1], color[2], color[3],
-                position.x - (sideLength / 2), position.y - (sideLength / 2), position.z - (sideLength / 2), color[0], color[1], color[2], color[3],
+                0 - (sideLength / 2), 0 + (sideLength / 2), 0 + (sideLength / 2), color[0], color[1], color[2], color[3],
+                0 + (sideLength / 2), 0 + (sideLength / 2), 0 + (sideLength / 2), color[0], color[1], color[2], color[3],
+                0 + (sideLength / 2), 0 - (sideLength / 2), 0 + (sideLength / 2), color[0], color[1], color[2], color[3],
+                0 - (sideLength / 2), 0 - (sideLength / 2), 0 + (sideLength / 2), color[0], color[1], color[2], color[3],
+                0 - (sideLength / 2), 0 + (sideLength / 2), 0 - (sideLength / 2), color[0], color[1], color[2], color[3],
+                0 + (sideLength / 2), 0 + (sideLength / 2), 0 - (sideLength / 2), color[0], color[1], color[2], color[3],
+                0 + (sideLength / 2), 0 - (sideLength / 2), 0 - (sideLength / 2), color[0], color[1], color[2], color[3],
+                0 - (sideLength / 2), 0 - (sideLength / 2), 0 - (sideLength / 2), color[0], color[1], color[2], color[3],
             };
             std::vector<u_int32_t> indices = {
                 0, 1, 2, 0, 2, 3,
@@ -38,9 +38,21 @@ namespace G_Objects {
             };
 
             auto cube = std::make_shared<P_Objects>(sideLength, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+            cube->localNormals = {
+                {1.0f, 0.0f, 0.0f},
+                {0.0f, 1.0f, 0.0f},
+                {0.0f, 0.0f, 1.0f}
+            };
+
+            cube->localEdges = {
+                {1.0f, 0.0f, 0.0f},
+                {0.0f, 1.0f, 0.0f},
+                {0.0f, 0.0f, 1.0f}
+            };
+            
             OpenGLLayer::SetUpGeometry(vertices, indices, cube->VAO, cube->VBO, cube->EBO);
             g_Objects.push_back(cube);
-            d_Objects.push_back(cube);   
+            d_Objects.push_back(cube);
         }
 
     void add_sphere(
@@ -82,9 +94,9 @@ namespace G_Objects {
                     float relY = sideLength * sinPhi;
                     float relZ = sideLength * cosPhi * sinTheta;
 
-                    float realX = relX + position.x;
-                    float realY = relY + position.y;
-                    float realZ = relZ + position.z;
+                    float realX = relX + 0;
+                    float realY = relY + 0;
+                    float realZ = relZ + 0;
 
                     vertices.push_back(realX);
                     vertices.push_back(realY);
@@ -128,14 +140,14 @@ namespace G_Objects {
             float halfD = depth / 2.0f;
 
             std::vector<float> vertices = {
-                position.x - halfW, position.y + halfH, position.z + halfD, color[0], color[1], color[2], color[3],
-                position.x + halfW, position.y + halfH, position.z + halfD, color[0], color[1], color[2], color[3],
-                position.x + halfW, position.y - halfH, position.z + halfD, color[0], color[1], color[2], color[3],
-                position.x - halfW, position.y - halfH, position.z + halfD, color[0], color[1], color[2], color[3],
-                position.x - halfW, position.y + halfH, position.z - halfD, color[0], color[1], color[2], color[3],
-                position.x + halfW, position.y + halfH, position.z - halfD, color[0], color[1], color[2], color[3],
-                position.x + halfW, position.y - halfH, position.z - halfD, color[0], color[1], color[2], color[3],
-                position.x - halfW, position.y - halfH, position.z - halfD, color[0], color[1], color[2], color[3],
+                0 - halfW, 0 + halfH, 0 + halfD, color[0], color[1], color[2], color[3],
+                0 + halfW, 0 + halfH, 0 + halfD, color[0], color[1], color[2], color[3],
+                0 + halfW, 0 - halfH, 0 + halfD, color[0], color[1], color[2], color[3],
+                0 - halfW, 0 - halfH, 0 + halfD, color[0], color[1], color[2], color[3],
+                0 - halfW, 0 + halfH, 0 - halfD, color[0], color[1], color[2], color[3],
+                0 + halfW, 0 + halfH, 0 - halfD, color[0], color[1], color[2], color[3],
+                0 + halfW, 0 - halfH, 0 - halfD, color[0], color[1], color[2], color[3],
+                0 - halfW, 0 - halfH, 0 - halfD, color[0], color[1], color[2], color[3],
             };
 
             std::vector<u_int32_t> indices = {
@@ -149,6 +161,19 @@ namespace G_Objects {
 
             float characteristic_size = std::max({width, height, depth});
             auto prism = std::make_shared<P_Objects>(characteristic_size, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+            
+            prism->localNormals = {
+                {1.0f, 0.0f, 0.0f},
+                {0.0f, 1.0f, 0.0f},
+                {0.0f, 0.0f, 1.0f}
+            };
+
+            prism->localEdges = {
+                {1.0f, 0.0f, 0.0f},
+                {0.0f, 1.0f, 0.0f},
+                {0.0f, 0.0f, 1.0f}
+            };
+
             OpenGLLayer::SetUpGeometry(vertices, indices, prism->VAO, prism->VBO, prism->EBO);
             g_Objects.push_back(prism);
             d_Objects.push_back(prism); 
@@ -164,7 +189,7 @@ namespace G_Objects {
 
             std::vector<float> vertices;
             for (int i = 0; i < 4; ++i) {
-                Math::Vector3 v = baseVerts[i].normalize() * radius + position;
+                Math::Vector3 v = baseVerts[i].normalize() * radius;
 
                 vertices.insert(vertices.end(), {v.x, v.y, v.z, color[0], color[1], color[2], color[3]});
             }
@@ -172,6 +197,23 @@ namespace G_Objects {
             std::vector<u_int32_t> indices = {0,1,2, 0,2,3, 0,3,1, 1,3,2};
 
             auto tetra = std::make_shared<P_Objects>(radius, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+            
+            Math::Vector3 v0(vertices[0], vertices[1], vertices[2]), 
+                          v1(vertices[7], vertices[8], vertices[9]), 
+                          v2(vertices[14], vertices[15], vertices[16]),
+                          v3(vertices[21], vertices[22], vertices[23]);
+
+            tetra->localNormals = {
+                (v1 - v0).cross(v2 - v0).normalize(),
+                (v2 - v0).cross(v3 - v0).normalize(),
+                (v3 - v0).cross(v1 - v0).normalize(),
+                (v2 - v1).cross(v3 - v1).normalize()
+            };
+
+            tetra->localEdges = {
+                v1 - v0, v2 - v0, v3 - v0, v2 - v1 , v3 - v2, v1 - v3
+            };
+
             OpenGLLayer::SetUpGeometry(vertices, indices, tetra->VAO, tetra->VBO, tetra->EBO);
             g_Objects.push_back(tetra);
             d_Objects.push_back(tetra);
@@ -180,8 +222,8 @@ namespace G_Objects {
     void add_square_pyramid(
         float base_radius, float height, Math::Vector3 position,
         float mass, float restitution, float color[4]) {
-            float yBottom = position.y - height/2.0f;
-            float yTop = position.y + height / 2.0f;
+            float yBottom = 0 - height/2.0f;
+            float yTop = 0 + height / 2.0f;
 
             std::vector<float> vertices;
 
@@ -190,11 +232,11 @@ namespace G_Objects {
                 {-base_radius, yBottom, -base_radius}, {base_radius, yBottom, -base_radius}
             };
             for (auto& bv : baseVerts) {
-                Math::Vector3 v(bv.x + position.x, bv.y, bv.z + position.z);
+                Math::Vector3 v(bv.x + 0, bv.y, bv.z + 0);
                 vertices.insert(vertices.end(), {v.x, v.y, v.z, color[0], color[1], color[2], color[3]});
             }
 
-            vertices.insert(vertices.end(), {position.x, yTop, position.z, color[0], color[1], color[2], color[3]});
+            vertices.insert(vertices.end(), {0, yTop, 0, color[0], color[1], color[2], color[3]});
 
             std::vector<u_int32_t> indices = {
                 0,1,2, 0,2,3,
@@ -203,6 +245,9 @@ namespace G_Objects {
 
             float charSize = std::max(base_radius, height);
             auto pyramid = std::make_shared<P_Objects>(charSize, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+            
+            Math::InitializePyramidAxes(pyramid, 4);
+
             OpenGLLayer::SetUpGeometry(vertices, indices, pyramid->VAO, pyramid->VBO, pyramid->EBO);
             g_Objects.push_back(pyramid);
             d_Objects.push_back(pyramid);
@@ -211,18 +256,18 @@ namespace G_Objects {
     void add_pentagonal_pyramid(
         float base_radius, float height, Math::Vector3 position,
         float mass, float restitution, float color[4]) {
-            float yBottom = position.y - height/2.0f;
-            float yTop = position.y + height/2.0f;
+            float yBottom = 0 - height/2.0f;
+            float yTop = 0 + height/2.0f;
 
             std::vector<float> vertices;
             const int base_sides = 5;
             for (int i = 0; i < base_sides; ++i) {
                 float angle = 2.0f * M_PI * i / base_sides;
-                float x = base_radius * cos(angle) + position.x;
-                float z = base_radius * sin(angle) + position.z;
+                float x = base_radius * cos(angle) + 0;
+                float z = base_radius * sin(angle) + 0;
                 vertices.insert(vertices.end(), {x, yBottom, z, color[0], color[1], color[2], color[3]});
             }
-            vertices.insert(vertices.end(), {position.x, yTop, position.z, color[0], color[1], color[2], color[3]});
+            vertices.insert(vertices.end(), {0, yTop, 0, color[0], color[1], color[2], color[3]});
 
             std::vector<u_int32_t> indices = {
                 0,1,2, 0,2,3, 0,3,4,
@@ -231,6 +276,9 @@ namespace G_Objects {
 
             float char_size = std::max(base_radius, height);
             auto pyramid = std::make_shared<P_Objects>(char_size, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+            
+            Math::InitializePyramidAxes(pyramid, 5);
+            
             OpenGLLayer::SetUpGeometry(vertices, indices, pyramid->VAO, pyramid->VBO, pyramid->EBO);
             g_Objects.push_back(pyramid);
             d_Objects.push_back(pyramid);   
@@ -239,18 +287,18 @@ namespace G_Objects {
     void add_hexagonal_pyramid(
         float base_radius, float height, Math::Vector3 position,
         float mass, float restitution, float color[4]) {
-            float yBottom = position.y - height/2.0f;
-            float yTop = position.y + height/2.0f;
+            float yBottom = 0 - height/2.0f;
+            float yTop = 0 + height/2.0f;
 
             std::vector<float> vertices;
             const int base_sides = 6;
             for (int i = 0; i < base_sides; ++i) {
                 float angle = 2.0f * M_PI * i / base_sides;
-                float x = base_radius * cos(angle) + position.x;
-                float z = base_radius * sin(angle) + position.z;
+                float x = base_radius * cos(angle) + 0;
+                float z = base_radius * sin(angle) + 0;
                 vertices.insert(vertices.end(), {x, yBottom, z, color[0], color[1], color[2], color[3]});
             }
-            vertices.insert(vertices.end(), {position.x, yTop, position.z, color[0], color[1], color[2], color[3]});
+            vertices.insert(vertices.end(), {0, yTop, 0, color[0], color[1], color[2], color[3]});
 
             std::vector<u_int32_t> indices = {
                 0,1,2, 0,2,3, 0,3,4, 0,4,5,
@@ -259,6 +307,9 @@ namespace G_Objects {
 
             float char_size = std::max(base_radius, height);
             auto pyramid = std::make_shared<P_Objects>(char_size, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+            
+            Math::InitializePyramidAxes(pyramid, 6);
+            
             OpenGLLayer::SetUpGeometry(vertices, indices, pyramid->VAO, pyramid->VBO, pyramid->EBO);
             g_Objects.push_back(pyramid);
             d_Objects.push_back(pyramid);   
@@ -275,7 +326,7 @@ namespace G_Objects {
 
             std::vector<float> vertices;
             for (auto& bv : base_verts) {
-                Math::Vector3 v = bv + position;
+                Math::Vector3 v = bv;
                 vertices.insert(vertices.end(), {v.x, v.y, v.z, color[0], color[1], color[2], color[3]});
             }
 
@@ -285,6 +336,23 @@ namespace G_Objects {
             };
 
             auto octa = std::make_shared<P_Objects>(radius, position, mass, restitution, color, GL_TRIANGLES, vertices, indices);
+            
+            Math::Vector3 v0 = Math::GetVertsFromVertices(vertices, 0);
+            Math::Vector3 v2 = Math::GetVertsFromVertices(vertices, 2);
+            Math::Vector3 v4 = Math::GetVertsFromVertices(vertices, 4);
+        
+            octa->localEdges.push_back(v2 - v0);
+            octa->localEdges.push_back(v4 - v2);
+            octa->localEdges.push_back(v0 - v4);
+            
+            int faceIndices[4][3] = {{0,2,4}, {0,4,3}, {0,3,5}, {0,5,2}};
+            for (int i = 0; i < 4; ++i) {
+                Math::Vector3 a = Math::GetVertsFromVertices(vertices, faceIndices[i][0]);
+                Math::Vector3 b = Math::GetVertsFromVertices(vertices, faceIndices[i][1]);
+                Math::Vector3 c = Math::GetVertsFromVertices(vertices, faceIndices[i][2]);
+                octa->localNormals.push_back((b - a).cross(c - a).normalize());
+            }
+            
             OpenGLLayer::SetUpGeometry(vertices, indices, octa->VAO, octa->VBO, octa->EBO);
             g_Objects.push_back(octa);
             d_Objects.push_back(octa);

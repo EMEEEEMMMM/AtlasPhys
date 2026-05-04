@@ -28,6 +28,9 @@ namespace G_Objects {
         // RotationMatrix
         Math::Vector3 angularVelocity = Math::Vector3();
 
+        std::vector<Math::Vector3> localNormals;
+        std::vector<Math::Vector3> localEdges;
+
         P_Objects()
             : sideLength(0.0f),
             position(Math::Vector3()),

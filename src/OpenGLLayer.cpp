@@ -89,6 +89,8 @@ void OpenGLLayer::Render() {
 
 	Step::integrator(G_Objects::d_Objects, deltaTime);
 
+	if (!G_Objects::d_Objects.empty()) Step::collision(G_Objects::d_Objects);
+
 	for (const auto& objPtr : G_Objects::g_Objects) {
 		auto& obj = *objPtr;
 		Math::Matrix4 model = obj.get_model_matrix();
@@ -148,10 +150,10 @@ void OpenGLLayer::DrawPlane() {
 		500, 0.0, -500, 0.5, 0.5, 0.5, 1.0,
 		-500, 0.0, -500, 0.5, 0.5, 0.5, 1.0,
 
-		-500, -2.0, 500, 0.5, 0.5, 0.5, 1.0,
-		500, -2.0, 500, 0.5, 0.5, 0.5, 1.0,
-		500, -2.0, -500, 0.5, 0.5, 0.5, 1.0,
-		-500, -2.0, -500, 0.5, 0.5, 0.5, 1.0,
+		-500, -1.0, 500, 0.5, 0.5, 0.5, 1.0,
+		500, -1.0, 500, 0.5, 0.5, 0.5, 1.0,
+		500, -1.0, -500, 0.5, 0.5, 0.5, 1.0,
+		-500, -1.0, -500, 0.5, 0.5, 0.5, 1.0,
 	};
 
 	std::vector<uint32_t> indices = {
@@ -165,9 +167,23 @@ void OpenGLLayer::DrawPlane() {
 
 	float color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 	auto Plane = std::make_shared<G_Objects::P_Objects>(1000.0, Math::Vector3(0.0f, -1.0f, 0.0f), 0.0, 0.0, color, GL_TRIANGLES, vertices, indices);
+	Plane->acceleration.y = 0.0f;
+	Plane->localNormals = {
+		{1.0f, 0.0f, 0.0f},
+		{0.0f, 1.0f, 0.0f},
+		{0.0f, 0.0f, 1.0f}
+	};
+
+	Plane->localEdges = {
+		{1.0f, 0.0f, 0.0f},
+		{0.0f, 0.0f, 1.0f},
+		{0.0f, 0.0f, 0.0f}
+	};
+
 	SetUpGeometry(vertices, indices, Plane->VAO, Plane->VBO, Plane->EBO);
 	G_Objects::g_Plane = *Plane;
 	G_Objects::g_Objects.push_back(Plane);	
+	G_Objects::d_Objects.push_back(Plane);
 }
 
 void OpenGLLayer::RenderWithCustomView(FrameBuffer* fb, const Math::Matrix4& view, const Math::Matrix4& projection) {
@@ -185,8 +201,6 @@ void OpenGLLayer::RenderWithCustomView(FrameBuffer* fb, const Math::Matrix4& vie
 					1, GL_FALSE, &projection.m[0][0]);
 
 	unsigned int modelLoc = glGetUniformLocation(m_Shader->m_RendererID, "model");
-
-	Step::integrator(G_Objects::d_Objects, deltaTime);
 
 	for (const auto& objPtr : G_Objects::g_Objects) {
 		Math::Matrix4 model = objPtr->get_model_matrix();

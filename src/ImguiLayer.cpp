@@ -149,7 +149,7 @@ void ImGuiLayer::RenderUI() {
         static Math::Vector3 position = Math::Vector3();
         static float mass = 1.0f;
         static float restitution = 0.3f;
-        static float color[4] = {0.4f, 0.7f, 0.0f, 1.0f};
+        static float color[4] = {1.0f, 0.0f, 0.0f, 1.0f};
 
         ImGui::Combo(
             "Shape", &item,
