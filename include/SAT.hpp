@@ -103,16 +103,16 @@ namespace SAT {
                 objB->position = objB->position - (correction * wB);                
             }
 
-            Math::Vector3 relVelocity = objA->velocity - objB->velocity;
-            float velocityNormal = relVelocity.dot(info.normal);
+            // Math::Vector3 relVelocity = objA->velocity - objB->velocity;
+            // float velocityNormal = relVelocity.dot(info.normal);
 
-            if (velocityNormal < 0) {
-                float e = std::min(objA->restitution, objB->restitution);
-                Math::Vector3 impulse = info.normal * (-(1.0f + e) * velocityNormal / wSum);
+            // if (velocityNormal < 0) {
+            //     float e = std::min(objA->restitution, objB->restitution);
+            //     Math::Vector3 impulse = info.normal * (-(1.0f + e) * velocityNormal / wSum);
 
-                objA->velocity = objA->velocity + (impulse * wA);
-                objB->velocity = objB->velocity - (impulse * wB);
-            }
+            //     objA->velocity = objA->velocity + (impulse * wA);
+            //     objB->velocity = objB->velocity - (impulse * wB);
+            // }
 
         }
 }

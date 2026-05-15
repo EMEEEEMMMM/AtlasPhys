@@ -24,8 +24,7 @@ bool Application::Init() {
     //     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     // #endif
 
-    m_Window =
-        glfwCreateWindow(m_Width, m_Height, m_Title.c_str(), nullptr, nullptr);
+    m_Window = glfwCreateWindow(m_Width, m_Height, m_Title.c_str(), nullptr, nullptr);
     if (!m_Window) {
         std::cerr << "Failed to create GLFW window\n";
         glfwTerminate();

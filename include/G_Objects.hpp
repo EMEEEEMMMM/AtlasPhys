@@ -21,6 +21,7 @@ namespace G_Objects {
         int lenIndices;
 
         Math::Vector3 position;
+        Math::Vector3 oldPosition;
         Math::Vector3 velocity = Math::Vector3();
         Math::Vector3 acceleration = Math::Vector3();
         Math::Vector3 scale = Math::Vector3(1.0f, 1.0f, 1.0f);

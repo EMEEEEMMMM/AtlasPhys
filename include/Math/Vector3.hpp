@@ -26,6 +26,7 @@ namespace Math {
             return *this;
         }
         inline Vector3 operator*(float s) const { return {x * s, y * s, z * s}; }
+        inline Vector3 operator/(float s) const { return {x / s, y / s, z / s}; }
 
         inline float dot(const Vector3& v) const { return x * v.x + y * v.y + z * v.z; }
         inline Vector3 cross(const Vector3& v) const {

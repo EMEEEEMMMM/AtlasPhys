@@ -66,7 +66,7 @@ void OpenGLLayer::Render() {
 	deltaTime = currentTime - lastFrame;
 	lastFrame = currentTime;
 
-	// std::cout << deltaTime << std::endl;
+	std::cout << deltaTime << std::endl;
 
 	Math::Matrix4 view = m_Camera.GetViewMatrix();
 	Math::Matrix4 projection = Math::Matrix4();
@@ -87,7 +87,7 @@ void OpenGLLayer::Render() {
 
 	unsigned int modelLoc = glGetUniformLocation(m_Shader->m_RendererID, "model");
 
-	Step::integrator(G_Objects::d_Objects, deltaTime);
+	Step::pStep(G_Objects::d_Objects, deltaTime);
 
 	if (!G_Objects::d_Objects.empty()) Step::collision(G_Objects::d_Objects);
 
@@ -166,7 +166,7 @@ void OpenGLLayer::DrawPlane() {
 	};
 
 	float color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
-	auto Plane = std::make_shared<G_Objects::P_Objects>(1000.0, Math::Vector3(0.0f, -1.0f, 0.0f), 0.0, 0.0, color, GL_TRIANGLES, vertices, indices);
+	auto Plane = std::make_shared<G_Objects::P_Objects>(1000.0, Math::Vector3(0.0f, -1.0f, 0.0f), 0.0, 0.5, color, GL_TRIANGLES, vertices, indices);
 	Plane->acceleration.y = 0.0f;
 	Plane->localNormals = {
 		{1.0f, 0.0f, 0.0f},
